@@ -161,6 +161,26 @@ function ollamaBrowserDouble({ cookies = [], phase = 'login' } = {}) {
   return browser;
 }
 
+// Navigateur système OrcaRouter (lib/account-browser.cjs → openNativeOrcaLogin).
+function orcaBrowserDouble({ session = null, phase = 'login', readError = null } = {}) {
+  const browser = {
+    current: phase,
+    session,
+    closed: 0,
+    reads: 0,
+    phase: () => browser.current,
+    async readOrcaSession() {
+      browser.reads++;
+      if (browser.current === 'login') throw coded('ORCA_LOGIN_PENDING', 'Termine la connexion OrcaRouter dans Chrome ou Edge, puis ferme cette fenêtre. Le portefeuille sera récupéré automatiquement.');
+      if (readError) throw readError;
+      browser.current = 'closed';
+      return browser.session;
+    },
+    async close() { browser.closed++; browser.current = 'closed'; },
+  };
+  return browser;
+}
+
 // --- Harnais -------------------------------------------------------------------
 
 // Reproduit l'injection faite par main.cjs : record / markHealth* s'appuient
@@ -188,6 +208,8 @@ function harness() {
     fetchWallet: async () => snapshotAt(Date.now(), { connectorVersion: 'orca-wallet-v1' }),
     fetchOllamaCredits: async () => ollamaSnapshotAt(Date.now()),
     openOllamaBrowser: async () => ollamaBrowserDouble(),
+    // Par défaut, ni Chrome ni Edge : la fenêtre intégrée OrcaRouter sert de recours.
+    openOrcaBrowser: async () => { throw new Error('Chrome ou Edge est nécessaire.'); },
     syncOne: async () => {},
   };
   // Comme lib/claude-live-usage.cjs : un succès programme la prochaine lecture
@@ -267,6 +289,7 @@ function harness() {
     fetchOllamaCredits: (fetchImpl, at, options) => { calls.push(['fetchOllamaCredits', at, options]); return services.fetchOllamaCredits(fetchImpl, at, options); },
     ollamaSession: () => sessions.ollama,
     openOllamaBrowser: dir => { calls.push(['openOllamaBrowser', dir]); return services.openOllamaBrowser(dir); },
+    openOrcaBrowser: dir => { calls.push(['openOrcaBrowser', dir]); return services.openOrcaBrowser(dir); },
     assumeOllamaFree,
   });
   const p = Object.fromEntries(providers.map(item => [item.id, item]));
@@ -751,7 +774,7 @@ test('ORCA_AUTH efface la session ; ORCA_RATE_LIMIT et ORCA_TRANSIENT conservent
     assert.equal(h.p.orcarouter.error, message, code);
     assert.equal(h.state.connectorHealth.orcarouter.error.sourceCode, code);
     assert.deepEqual(h.flows.info().orcarouter, { status: 'error', message, errorCode: code }, code);
-    assert.equal(window.destroyed, true, `${code} : la fenêtre se ferme, la session restant valide`);
+    assert.equal(window.destroyed, false, `${code} : une erreur passagère ne ferme plus la fenêtre de connexion`);
     assert.equal(h.count('persist'), 1, code);
     assert.equal(h.busy.size, 0, code);
     assert.equal(h.labels().at(-1), 'broadcast', code);
@@ -774,7 +797,7 @@ test('ORCA_AUTH efface la session ; ORCA_RATE_LIMIT et ORCA_TRANSIENT conservent
   window.close();
   await assert.rejects(h.flows.verifyOrcaAccount(), { code: 'ORCA_AUTH' });
   assert.equal(h.count('fetchWallet'), 1);
-  // Un portefeuille incohérent est refusé par le contrat : session et relevé conservés, fenêtre fermée.
+  // Un portefeuille incohérent est refusé par le contrat : session et relevé conservés, fenêtre laissée ouverte.
   h.p.orcarouter.accountSession = stored;
   h.services.fetchWallet = async () => ({ updatedAt: new Date().toISOString() });
   await h.flows.openOrcaAccount();
@@ -782,7 +805,7 @@ test('ORCA_AUTH efface la session ; ORCA_RATE_LIMIT et ORCA_TRANSIENT conservent
   assert.equal(h.p.orcarouter.accountSession, stored);
   assert.equal(h.p.orcarouter.snapshot, previous);
   assert.equal(h.state.connectorHealth.orcarouter.state, 'drift');
-  assert.equal(h.windows[1].destroyed, true);
+  assert.equal(h.windows.at(-1).destroyed, false);
 });
 
 test('verifyOrcaAccount refuse un fournisseur occupé et partage une vérification en cours', async t => {
@@ -1246,4 +1269,88 @@ test('openOllamaEmailAccount pendant le lancement du navigateur n’abandonne au
 
 test('closeAll pendant le lancement du navigateur n’abandonne aucun timer de détection', async t => {
   await phantomDetectionProbe(t, h => h.flows.closeAll());
+});
+
+// --- OrcaRouter dans Chrome ou Edge ------------------------------------------------
+
+test('openOrcaAccount ouvre Chrome ou Edge, puis lit la session dès que la fenêtre est fermée', async t => {
+  const { advance } = clock(t);
+  const h = harness();
+  const cookies = [{ url: 'https://www.orcarouter.ai/', name: 'session', value: 'abc', path: '/' }];
+  const browser = orcaBrowserDouble({ session: { ref: { userId: 12, workspaceId: 34 }, cookies } });
+  h.services.openOrcaBrowser = async () => browser;
+  assert.equal(await h.flows.openOrcaAccount(), true);
+  assert.deepEqual(h.find('openOrcaBrowser'), ['openOrcaBrowser', DATA_DIR]);
+  assert.equal(h.windows.length, 0, 'aucune fenêtre intégrée');
+  assert.equal(h.flows.info().orcarouter.status, 'waiting');
+  assert.match(h.flows.info().orcarouter.message, /Chrome ou Edge.*GitHub, Google, Microsoft/);
+  // Navigateur déjà ouvert : pas de second lancement.
+  assert.equal(await h.flows.openOrcaAccount(), true);
+  assert.equal(h.count('openOrcaBrowser'), 1);
+  // « Vérifier maintenant » pendant la connexion : attente, sans effacer la session.
+  await assert.rejects(h.flows.verifyOrcaAccount(), { code: 'ORCA_LOGIN_PENDING' });
+  assert.equal(h.flows.info().orcarouter.status, 'waiting');
+  await advance(750);
+  assert.equal(browser.reads, 1, 'rien d’autre tant que la fenêtre système est ouverte');
+  browser.current = 'verifying';
+  await advance(750);
+  assert.equal(browser.reads, 2);
+  assert.deepEqual(h.sessions.orca.cookies.stored, cookies, 'les cookies lus sont copiés dans la session isolée');
+  assert.deepEqual(h.find('fetchWallet')[1], { userId: 12, workspaceId: 34 });
+  assert.deepEqual(h.p.orcarouter.accountSession, { userId: 12, workspaceId: 34 });
+  assert.equal(browser.closed, 1);
+  assert.equal(h.flows.info().orcarouter.status, 'connected');
+  assert.equal(h.count('showMain'), 1);
+  await advance(3000);
+  assert.equal(browser.reads, 2, 'la détection s’arrête après la vérification');
+  assert.deepEqual(h.flows.pending(), []);
+});
+
+test('openOrcaAccount : fenêtre fermée sans connexion, session existante conservée, lecture impossible, recours sans Chrome', async t => {
+  const { advance } = clock(t);
+  // Sans session enregistrée : explication claire, aucune lecture du portefeuille.
+  let h = harness();
+  let browser = orcaBrowserDouble({ session: { ref: null, cookies: [] } });
+  h.services.openOrcaBrowser = async () => browser;
+  await h.flows.openOrcaAccount();
+  browser.current = 'verifying';
+  await advance(750);
+  assert.equal(h.count('fetchWallet'), 0);
+  assert.equal(h.flows.info().orcarouter.errorCode, 'ORCA_AUTH');
+  assert.match(h.flows.info().orcarouter.message, /Aucune session OrcaRouter détectée/);
+  assert.equal(browser.closed, 1);
+  // Avec une session enregistrée : elle reste utilisée.
+  h = harness();
+  h.p.orcarouter.accountSession = { userId: 5, workspaceId: 6 };
+  browser = orcaBrowserDouble({ session: { ref: null, cookies: [] } });
+  h.services.openOrcaBrowser = async () => browser;
+  await h.flows.openOrcaAccount();
+  browser.current = 'verifying';
+  await advance(750);
+  assert.deepEqual(h.find('fetchWallet')[1], { userId: 5, workspaceId: 6 });
+  assert.equal(h.flows.info().orcarouter.status, 'connected');
+  // Lecture du profil impossible : erreur passagère, session conservée.
+  h = harness();
+  h.p.orcarouter.accountSession = { userId: 5, workspaceId: 6 };
+  browser = orcaBrowserDouble({ readError: new Error('pipe fermé') });
+  h.services.openOrcaBrowser = async () => browser;
+  await h.flows.openOrcaAccount();
+  browser.current = 'verifying';
+  await advance(750);
+  assert.equal(h.flows.info().orcarouter.errorCode, 'ORCA_TRANSIENT');
+  assert.deepEqual(h.p.orcarouter.accountSession, { userId: 5, workspaceId: 6 });
+  assert.equal(browser.closed, 1);
+  // Sans Chrome ni Edge : la fenêtre intégrée s'ouvre.
+  h = harness();
+  assert.equal(await h.flows.openOrcaAccount(), true);
+  assert.equal(h.windows.length, 1);
+  assert.equal(h.find('openOrcaBrowser')[0], 'openOrcaBrowser');
+  // cancelOrca ferme le navigateur système.
+  h = harness();
+  browser = orcaBrowserDouble();
+  h.services.openOrcaBrowser = async () => browser;
+  await h.flows.openOrcaAccount();
+  await h.flows.cancelOrca();
+  assert.equal(browser.closed, 1);
+  assert.deepEqual(h.flows.info().orcarouter, { status: 'idle', message: '' });
 });

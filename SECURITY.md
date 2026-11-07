@@ -9,7 +9,7 @@ manière de signaler une vulnérabilité.
 
 | Version | Support sécurité |
 | --- | --- |
-| 0.6.x (branche `main`) | oui — dernière version publiée : 0.6.14 |
+| 0.6.x (branche `main`) | oui — dernière version publiée : 0.6.15 |
 | 0.5.x et antérieures | non — mettre à jour vers la dernière version |
 
 Les correctifs de sécurité sont livrés dans la dernière version ; il n'existe
@@ -56,6 +56,11 @@ un utilisateur légitime qui contrôle sa session et son dossier de données.
   allowlist d'origines HTTPS (`ollama.com`, `orcarouter.ai`/`www`,
   `accounts.google.com`) ; les fenêtres de l'interface refusent navigation,
   popups et permissions ;
+- les connexions Ollama et OrcaRouter dans Chrome ou Edge utilisent un profil
+  dédié, sans pipe de débogage pendant la connexion ; après la fermeture, un
+  lecteur sans fenêtre (pipe local) ne lit que les cookies du fournisseur et,
+  pour OrcaRouter, les identifiants numériques du compte et de l'espace de
+  travail ;
 - les lecteurs de comptes utilisent un pipe CDP local (`--remote-debugging-pipe`)
   et n'ouvrent **aucun port TCP de débogage** ;
 - l'export de données est nettoyé : aucune session, identité pseudonyme,

@@ -421,18 +421,38 @@ async function main() {
       throw new Error('Unexpected wallet endpoint');
     };
   });
+  // Connexion dans Chrome ou Edge (navigateur système simulé) : aucune fenêtre
+  // intégrée ; la session est lue après la fermeture du navigateur.
+  await desktop.evaluate(() => {
+    const fake = globalThis.__orcaBrowser = { phase: 'login', opened: 0, closed: 0 };
+    process.mainModule.require('./lib/account-browser.cjs').openOrcaBrowser = async () => {
+      fake.opened++; fake.phase = 'login';
+      return {
+        isOpen: () => fake.phase !== 'closed',
+        phase: () => fake.phase,
+        async readOrcaSession() {
+          if (fake.phase === 'login') throw Object.assign(new Error('Termine la connexion OrcaRouter dans Chrome ou Edge.'), { code: 'ORCA_LOGIN_PENDING' });
+          fake.phase = 'closed';
+          return { ref: { userId: 12, workspaceId: 34 }, cookies: [{ url: 'https://www.orcarouter.ai/', name: 'smoke-orca', value: 'fixture', path: '/', secure: true }] };
+        },
+        async close() { fake.closed++; fake.phase = 'closed'; },
+      };
+    };
+  });
   await openProvider(page, 'orcarouter', 'connection');
   assert.equal(await page.locator('#api-key').count(), 0);
-  const accountOpened = desktop.waitForEvent('window');
+  const windowsBefore = desktop.windows().length;
   await page.locator('[data-action="orca-open"]').click();
-  const accountWindow = await accountOpened;
-  await accountWindow.waitForURL('https://www.orcarouter.ai/console');
-  assert.equal(await accountWindow.evaluate(() => typeof window.require), 'undefined');
-  assert.equal(await accountWindow.evaluate(() => typeof window.lasmium), 'undefined');
+  await page.waitForFunction(() => document.querySelector('#orca-connection-progress')?.textContent.includes('Chrome ou Edge'));
   assert.ok((await page.locator('#orca-connection-progress').innerText()).includes('automatiquement'));
+  assert.equal(desktop.windows().length, windowsBefore, 'aucune fenêtre intégrée pour OrcaRouter');
   assert.equal(await page.locator('.connection-success').count(), 0);
-  await accountWindow.evaluate(() => { localStorage.setItem('user', JSON.stringify({ id: 12 })); localStorage.setItem('active_workspace_id', '34'); });
+  await desktop.evaluate(() => { globalThis.__orcaBrowser.phase = 'verifying'; });
   await page.waitForSelector('.connection-success');
+  assert.deepEqual(await desktop.evaluate(async ({ session }) => ({
+    cookies: (await session.fromPartition('persist:orcarouter-account').cookies.get({ name: 'smoke-orca' })).length,
+    opened: globalThis.__orcaBrowser.opened, closed: globalThis.__orcaBrowser.closed,
+  })), { cookies: 1, opened: 1, closed: 1 });
   assert.ok((await page.locator('.dialog-body').innerText()).includes('53,20'));
   await page.screenshot({ path: path.join(results, 'orca-account.png') });
   let orcaState = await page.evaluate(() => window.lasmium.getState());
@@ -486,12 +506,19 @@ async function main() {
       return { ok: true, json: async () => ({ success: true, data: { quota_per_unit: 500000 } }) };
     };
   });
+  // Sans Chrome ni Edge, la fenêtre intégrée isolée reste un recours.
+  await desktop.evaluate(() => {
+    process.mainModule.require('./lib/account-browser.cjs').openOrcaBrowser = async () => { throw new Error('Chrome ou Edge est nécessaire.'); };
+  });
   await closeDialog(page);
   await openProvider(page, 'orcarouter', 'connection');
   const reconnected = desktop.waitForEvent('window');
   await page.locator('[data-action="orca-open"]').click();
   const reconnectWindow = await reconnected;
   await reconnectWindow.waitForURL('https://www.orcarouter.ai/console');
+  assert.equal(await reconnectWindow.evaluate(() => typeof window.require), 'undefined');
+  assert.equal(await reconnectWindow.evaluate(() => typeof window.lasmium), 'undefined');
+  await reconnectWindow.evaluate(() => { localStorage.setItem('user', JSON.stringify({ id: 12 })); localStorage.setItem('active_workspace_id', '34'); });
   await page.waitForSelector('.connection-success');
   orcaState = await page.evaluate(() => window.lasmium.getState());
   assert.equal(orcaState.providers.find(p => p.id === 'orcarouter').connected, true);

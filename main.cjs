@@ -201,6 +201,8 @@ const providerFlows = createProviderFlows({
   fetchOllamaCredits,
   ollamaSession,
   openOllamaBrowser,
+  // Liaison tardive : les smoke tests remplacent le navigateur système.
+  openOrcaBrowser: (...args) => accountBrowser.openOrcaBrowser(...args),
   assumeOllamaFree,
 });
 const {
@@ -604,6 +606,7 @@ function registerIpc() {
       if (id === 'orcarouter') {
         await providerFlows.cancelOrca();
         await orcaSession().clearStorageData();
+        await accountBrowser.deleteOrcaAccountProfile(dataDir);
         delete provider(id).accountSession;
       }
       if (id === 'ollama') {

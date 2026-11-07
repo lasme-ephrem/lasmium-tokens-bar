@@ -1,5 +1,28 @@
 # Historique des versions
 
+## 0.6.15 — 8 novembre 2026
+
+Version **corrective** : la connexion OrcaRouter se fait dans Chrome ou Edge,
+comme pour Ollama. Toutes les fonctionnalités 0.6.14 sont conservées.
+
+### Corrections
+
+- OrcaRouter : la connexion s'ouvrait dans une fenêtre intégrée qui bloquait
+  GitHub, Microsoft, la clé d'accès et le lien e-mail (Google y refuse aussi les
+  fenêtres intégrées), et qui se fermait seule à la moindre erreur passagère.
+  « Se connecter sur OrcaRouter » ouvre désormais Chrome ou Edge avec un profil
+  dédié : connecte-toi, choisis ton espace de travail, ferme la fenêtre ; le
+  portefeuille est ensuite récupéré automatiquement. Seuls les cookies
+  d'`orcarouter.ai` et les identifiants numériques du compte et de l'espace de
+  travail sont lus. Sans Chrome ni Edge, la fenêtre intégrée reste un recours et
+  ne se ferme plus qu'après une connexion réussie.
+- Fenêtre fermée sans connexion : une session déjà enregistrée reste utilisée ;
+  sinon un message explique quoi faire. La déconnexion supprime le profil dédié.
+- OrcaRouter et Ollama : la session n'est lue qu'une fois le profil réellement
+  libéré par Chrome ou Edge (fichier `lockfile`), même si une fenêtre utilisant
+  ce profil était déjà ouverte ; un navigateur qui se ferme dès son ouverture
+  est signalé clairement.
+
 ## 0.6.14 — 7 novembre 2026
 
 Version **corrective** : Claude se renouvelle seul en arrière-plan et Ollama est

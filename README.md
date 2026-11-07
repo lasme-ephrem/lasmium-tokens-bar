@@ -2,6 +2,8 @@
 
 Application desktop Windows pour suivre les abonnements, quotas et crédits de **dix fournisseurs d’IA**. Un tableau de bord et un widget dans la zone de notification regroupent les abonnements et les API avec leurs ressources restantes et leurs dates de réinitialisation.
 
+**Version 0.6.15 — 8 novembre 2026 :** version **corrective** : la connexion OrcaRouter s'ouvre dans Chrome ou Edge (GitHub, Google, Microsoft ou e-mail), comme pour Ollama, au lieu d'une fenêtre intégrée qui bloquait les liens et se fermait seule. Détails dans [CHANGELOG.md](CHANGELOG.md).
+
 **Version 0.6.14 — 7 novembre 2026 :** version **corrective** : la connexion Claude est renouvelée seule en arrière-plan par Claude Code (plus besoin de taper `claude` dans un terminal) et Ollama est de nouveau lu depuis son nouveau tableau de bord. Détails dans [CHANGELOG.md](CHANGELOG.md).
 
 **Version 0.6.13 — 5 novembre 2026 :** version **corrective** : l'icône Lasmium de la barre des tâches est donnée par l'application elle-même, sans dépendre du cache d'icônes de Windows. Détails dans [CHANGELOG.md](CHANGELOG.md).
@@ -21,6 +23,12 @@ Application desktop Windows pour suivre les abonnements, quotas et crédits de *
 **Version 0.6.6 — 5 novembre 2026 :** version **Qualité** : correction d'un timer orphelin du navigateur de connexion Ollama, URL de mise à jour vers le dépôt renommé, CI fusionnée et workflow de release automatisé, ESLint, 352 tests, renderer découpé. Toutes les fonctionnalités 0.6.5 sont conservées ; détails dans [CHANGELOG.md](CHANGELOG.md).
 
 **Version 0.6.5 — 4 novembre 2026 :** **mise à jour automatique signée** du portable, vérifiée par manifeste Ed25519 et SHA-256, avec remplacement après fermeture et conservation stricte de `data/` ; **canary live** prêt à recevoir des clés de test locales. Toutes les fonctionnalités 0.5.0 sont conservées. Détails dans [CHANGELOG.md](CHANGELOG.md), [updates.md](docs/updates.md), la [matrice fournisseurs](docs/provider-matrix.md) et le [runbook](docs/runbook-connectors.md).
+
+## Maintenance 0.6.15
+
+- **OrcaRouter** : connexion dans Chrome ou Edge (`openOrcaBrowser`, profil `account-browsers/orcarouter`), lecture après fermeture par un lecteur sans fenêtre (cookies `orcarouter.ai` et identifiants numériques), fenêtre intégrée en recours.
+- **Navigateurs de connexion** : fin de connexion détectée par la sortie du processus **et** la libération du profil (`lockfile`) ; échec au lancement signalé.
+- **Qualité** : 379 tests, lint sans erreur, trois smoke tests Windows ; parcours réel vérifié sur l'application packagée avec un vrai Chrome.
 
 ## Maintenance 0.6.14
 
