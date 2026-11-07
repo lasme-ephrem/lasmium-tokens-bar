@@ -1,6 +1,6 @@
 # Confidentialité — Lasmium TOKENS-HUB
 
-Ce document décrit le comportement de la version **0.6.13** ; la version
+Ce document décrit le comportement de la version **0.6.14** ; la version
 installée est affichée dans les réglages de l'application.
 
 Lasmium TOKENS-HUB est une application **locale pour Windows x64**. Elle ne dispose
@@ -110,7 +110,12 @@ durée éventuellement présents dans l'environnement ne lui sont pas transmis :
 - les jetons sont lus depuis `~/.claude/.credentials.json` et restent en mémoire
   du processus principal ; ils ne sont **jamais** copiés dans les données
   Lasmium TOKENS-HUB, jamais envoyés au renderer et jamais exportés ;
-- le renouvellement de la connexion réécrit ce même fichier officiel, avec les
+- à l'expiration, la connexion est d'abord renouvelée par Claude Code lui-même :
+  Lasmium lance `claude -p` en mode silencieux (modèle Haiku, aucun outil, aucune
+  session enregistrée) avec une invite fixe, « Réponds uniquement : OK », qui ne
+  contient aucune donnée personnelle et compte comme une très petite requête sur
+  ton abonnement ; au plus une fois toutes les 15 minutes ;
+- sinon, le renouvellement de la connexion réécrit ce même fichier officiel, avec les
   verrous et l'écriture atomique de Claude Code, et conserve les autres champs ;
 - le forfait, l'adresse e-mail du compte et les délais de reprise sont
   enregistrés dans `state.json` (code d'erreur et horodatage), sans jeton.

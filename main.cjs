@@ -123,7 +123,9 @@ const cooldowns = {
 // Lecture directe Claude : instance unique du lecteur, transport Windows
 // (session.defaultSession.fetch) partagé avec les appels API. Le renouvellement
 // OAuth est créé par la même factory, donc sans globalThis.fetch.
-const claudeReader = claudeLive.createClaudeLiveReader({ fetchImpl: apiFetch });
+// Le jeton expiré est renouvelé par Claude Code lui-même, en arrière-plan.
+const claudeReader = claudeLive.createClaudeLiveReader({ fetchImpl: apiFetch,
+  renewWithClaudeCode: () => claudeCli.renewConnection({ cwd: path.join(dataDir, 'claude-code') }) });
 // Connexion Claude déléguée au Claude Code officiel, toujours sur l'abonnement.
 const claudeCli = createClaudeCli();
 let quickDesiredHeight = 660;

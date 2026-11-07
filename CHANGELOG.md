@@ -1,5 +1,27 @@
 # Historique des versions
 
+## 0.6.14 — 7 novembre 2026
+
+Version **corrective** : Claude se renouvelle seul en arrière-plan et Ollama est
+de nouveau lu. Toutes les fonctionnalités 0.6.13 sont conservées.
+
+### Corrections
+
+- Claude : quand la connexion arrive à expiration, Lasmium TOKENS-HUB demande à
+  Claude Code de la renouveler lui-même, sans fenêtre ni action de ta part
+  (`claude -p` en mode silencieux, modèle Haiku, aucun outil, aucune session
+  enregistrée, lancé dans le dossier `data/claude-code`). Il n'est plus
+  nécessaire d'ouvrir un terminal et de taper `claude` pour faire disparaître le
+  bandeau. Toujours sur ton abonnement : ni clé API ni jeton longue durée. Au
+  plus un essai toutes les 15 minutes ; le renouvellement direct de Lasmium
+  reste un recours.
+- Ollama : le site a déplacé l'usage vers `ollama.com/dashboard` (et s'affiche
+  désormais en français selon la langue). Le lecteur lit ce tableau de bord :
+  forfait, usage inclus restant (« 100 % left ») et crédits d'usage (« Pay as
+  you go »). L'ancienne page `/settings` reste un recours. Une redirection vers
+  la connexion est reconnue comme une session expirée au lieu d'une erreur
+  réseau, et la page de connexion est reconnue en anglais comme en français.
+
 ## 0.6.13 — 5 novembre 2026
 
 Version **corrective** : l'icône de la barre des tâches ne dépend plus du cache

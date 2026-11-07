@@ -1,7 +1,7 @@
 # Maintenance
 
 Documentation des commandes réelles de vérification, de l'intégration continue et
-des procédures de maintenance. La version publiée est **0.6.13** (branche `main`,
+des procédures de maintenance. La version publiée est **0.6.14** (branche `main`,
 Node.js ≥ 24, Windows x64, Electron 44.x).
 
 ## Validation locale (Definition of Done)

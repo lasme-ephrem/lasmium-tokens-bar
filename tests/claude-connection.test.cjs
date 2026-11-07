@@ -171,3 +171,64 @@ test('Early 401 renewal adopts an already replaced token, avoiding unnecessary r
   await fs.writeFile(file, JSON.stringify(document));
   assert.equal(await connection.read(new Date(stamp), { forceRefresh: true, rejectedToken: 'old-test-access' }), 'sibling-valid-test-access');
 });
+
+// Claude Code renouvelle lui-même sa connexion (Anthropic refuse durablement
+// celle faite par une autre application) : Lasmium le lance, puis relit.
+test('Claude Code renews the expired connection itself; the direct refresh is never posted', async t => {
+  const { file, options } = await fixture(t);
+  let launches = 0, posts = 0;
+  const connection = createClaudeConnection({ ...options,
+    fetchImpl: async () => { posts++; throw new Error('Must not post a refresh'); },
+    renewWithClaudeCode: async () => {
+      launches++;
+      // Comme Claude Code : il réécrit le fichier avec un jeton neuf.
+      const document = JSON.parse(await fs.readFile(file, 'utf8'));
+      document.claudeAiOauth = { ...document.claudeAiOauth, accessToken: 'claude-code-access', expiresAt: stamp + 8 * 3600000 };
+      await fs.writeFile(file, JSON.stringify(document));
+    } });
+  const tokens = await Promise.all([connection.read(), connection.read()]);
+  assert.deepEqual(tokens, ['claude-code-access', 'claude-code-access']);
+  assert.equal(launches, 1, 'un seul lancement pour des lectures simultanées');
+  assert.equal(posts, 0);
+  assert.equal(await connection.read(), 'claude-code-access');
+  assert.equal(launches, 1, 'jeton valide : Claude Code n’est pas relancé');
+});
+
+test('If Claude Code cannot renew, the direct refresh remains the fallback and Claude Code waits a quarter-hour', async t => {
+  const { DELEGATE_RETRY_MS } = require('../lib/claude-connection.cjs');
+  let time = stamp;
+  const { options } = await fixture(t);
+  let launches = 0, posts = 0;
+  const connection = createClaudeConnection({ ...options, now: () => new Date(time),
+    fetchImpl: async () => { posts++; return { status: 429, ok: false, headers: new Headers() }; },
+    renewWithClaudeCode: async () => { launches++; throw new Error('Claude Code absent'); } });
+  await assert.rejects(connection.read(new Date(time)), { code: 'auth-rate-limit' });
+  assert.deepEqual([launches, posts], [1, 1], 'Claude Code d’abord, puis le renouvellement direct');
+  time += 60000;
+  await assert.rejects(connection.read(new Date(time)), { code: 'auth-rate-limit' });
+  assert.deepEqual([launches, posts], [1, 2], 'pas de nouveau lancement avant un quart d’heure');
+  time = stamp + DELEGATE_RETRY_MS;
+  await assert.rejects(connection.read(new Date(time)), { code: 'auth-rate-limit' });
+  assert.equal(launches, 2);
+  // Claude Code a tourné mais sans renouveler (fichier inchangé) : recours direct.
+  const unchanged = await fixture(t);
+  let fallbackPosts = 0;
+  const silent = createClaudeConnection({ ...unchanged.options, renewWithClaudeCode: async () => {},
+    fetchImpl: async () => { fallbackPosts++; return reply(fresh()); } });
+  assert.equal(await silent.read(), 'new-test-access');
+  assert.equal(fallbackPosts, 1);
+});
+
+test('A token refused by the quota service is renewed by Claude Code only if it really changes', async t => {
+  const { file, options } = await fixture(t, { expiresAt: stamp + 8 * 3600000 });
+  let posts = 0;
+  const connection = createClaudeConnection({ ...options,
+    fetchImpl: async () => { posts++; return reply(fresh()); },
+    renewWithClaudeCode: async () => {
+      const document = JSON.parse(await fs.readFile(file, 'utf8'));
+      document.claudeAiOauth.accessToken = 'claude-code-access';
+      await fs.writeFile(file, JSON.stringify(document));
+    } });
+  assert.equal(await connection.read(new Date(stamp), { forceRefresh: true, rejectedToken: 'old-test-access' }), 'claude-code-access');
+  assert.equal(posts, 0);
+});

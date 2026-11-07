@@ -1,0 +1,90 @@
+<!-- ollama.com/dashboard, 7 novembre 2026, compte Free avec crédits d'usage.
+     Extrait anonymisé (nom remplacé, dialogues retirés), structure d'origine. -->
+<main>
+    <div>
+<section id="settings-sections">
+<div>
+  <div>
+    <h1><span>Good evening</span>, user</h1>
+    <div>
+      <a href="/download">Download Ollama</a>
+      <button type="button">Create API key</button>
+    </div>
+  </div>
+
+  <section>
+    <div>
+      <div>
+        <div>
+          <div id="dashboard-meter">
+            <div>Usage credits<span id="dashboard-plan">Pay as you go</span></div>
+
+            <p><span id="extra-usage-balance">$1.05</span></p>
+
+          </div>
+
+          <div><button id="extra-usage-buy-more" type="button">Add credits</button></div>
+          <div>
+<div id="extra-usage-auto-reload">
+  <div id="extra-usage-auto-reload-controls">
+    <div>
+      <h3>Auto-reload</h3>
+      <p id="extra-usage-auto-reload-summary">
+        Off
+      </p>
+    </div>
+    <button id="extra-usage-reload-toggle" type="button" role="switch">
+      <span></span>
+    </button>
+  </div>
+  <p id="extra-usage-auto-reload-link">
+    <button type="button">Turn on auto-reload</button>
+  </p>
+  <dialog id="extra-usage-reload-dialog">
+    <div>
+      <h2 id="extra-usage-reload-title" tabindex="-1">Adjust auto-reload</h2>
+      <p id="extra-usage-reload-description">Automatically add more usage credits when you’re running low.</p>
+      <form id="extra-usage-reload-form" method="POST" action="/settings/extra-usage/auto-reload">
+        <div>
+          <label for="extra-usage-threshold">When your balance falls below:</label>
+          <div><span>$</span><input id="extra-usage-threshold" type="number" name="threshold" value="0"></div>
+        </div>
+        <div>
+          <label for="extra-usage-reload-amount">Reload amount:</label>
+          <div><span>$</span><input id="extra-usage-reload-amount" type="number" name="amount" value="" placeholder="5"></div>
+        </div>
+        <div>
+          <label for="extra-usage-monthly-limit">Monthly max:</label>
+          <div><span>$</span><input id="extra-usage-monthly-limit" type="number" name="monthly_limit" value="40"></div>
+          <p id="extra-usage-monthly-spend"></p>
+        </div>
+        <p>We’ll charge your saved payment method for the reload amount whenever your balance falls below the threshold, up to your monthly max.</p>
+      </form>
+    </div>
+  </dialog>
+</div>
+</div>
+        </div>
+<p id="extra-usage-auto-reload-status" role="alert"></p>
+      </div>
+
+      <div>
+        <div>Free usage</div>
+        <p id="dashboard-included">100% <span>left</span></p>
+
+      </div>
+
+    </div>
+  </section>
+
+  <section id="quickstart">
+    <h2 id="dashboard-quickstart-title">Quickstart</h2>
+    <div>
+      <button type="button"><span>Use open models in my app</span><span>Call open models in your app using Ollama's API.</span></button>
+      <button type="button"><span>Run open models in Claude Code</span><span>Code with open models from your terminal.</span></button>
+    </div>
+  </section>
+</div>
+</section>
+    </div>
+</main>

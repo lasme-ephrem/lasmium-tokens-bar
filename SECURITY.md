@@ -9,7 +9,7 @@ manière de signaler une vulnérabilité.
 
 | Version | Support sécurité |
 | --- | --- |
-| 0.6.x (branche `main`) | oui — dernière version publiée : 0.6.13 |
+| 0.6.x (branche `main`) | oui — dernière version publiée : 0.6.14 |
 | 0.5.x et antérieures | non — mettre à jour vers la dernière version |
 
 Les correctifs de sécurité sont livrés dans la dernière version ; il n'existe

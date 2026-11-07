@@ -83,6 +83,14 @@ async function fakeClaudeCode(options) {
       child.stderr = new EventEmitter();
       child.kill = () => {};
       setImmediate(() => {
+        // Renouvellement en arrière-plan (claude -p …) : comme le vrai Claude Code,
+        // il réécrit sa connexion seulement s'il en a une neuve à écrire.
+        if (args[0] === '-p') {
+          if (fake.renewCredentials) fsSync.writeFileSync(CREDENTIAL_PATH, JSON.stringify(fake.renewCredentials));
+          child.stdout.emit('data', 'OK');
+          child.emit('close', 0);
+          return;
+        }
         if (args[1] === 'login') {
           if (!fake.loginSucceeds) { child.stderr.emit('data', 'OAuth error'); child.emit('close', 1); return; }
           fsSync.writeFileSync(CREDENTIAL_PATH, JSON.stringify(fake.loginCredentials));
@@ -194,7 +202,10 @@ async function main() {
   assert.equal(connected.error, null);
   assert.deepEqual(connected.snapshot.quotaWindows.map(w => [w.label, w.remaining]), [['5 heures', 91], ['Semaine', 58], ['Fable · Semaine', 69]]);
   const cliCalls = await desktop.evaluate(() => globalThis.__claudeCode.calls);
-  assert.deepEqual(cliCalls.map(call => call.args.join(' ')), ['auth status --json', 'auth login --claudeai', 'auth status --json']);
+  // Claude Code est d'abord lancé en arrière-plan pour renouveler (sans effet
+  // ici : connexion révoquée), puis la connexion officielle prend le relais.
+  assert.deepEqual(cliCalls.map(call => call.args.join(' ')),
+    ['auth status --json', '-p Réponds uniquement : OK --model haiku --no-session-persistence --tools ', 'auth login --claudeai', 'auth status --json']);
   assert.ok(cliCalls.every(call => !call.apiKey && !call.setupToken && call.hidden), 'Claude Code est toujours lancé sur l’abonnement, sans fenêtre');
   assert.match(await page.locator('.connection-success').innerText(), /ton abonnement Claude Max \(smoke@example\.test\) · lecture toutes les 5 minutes/);
   assert.match(await page.locator('.dialog-body').innerText(), /Hebdo Fable : 69 % restants/);
@@ -271,6 +282,25 @@ async function main() {
   await resetMainClock();
 
   // ------------------------------------------------------------------ *
+  // 4 bis. Jeton expiré : Claude Code le renouvelle en arrière-plan, sans
+  //        aucune action ; la lecture reprend sans message d'erreur.
+  // ------------------------------------------------------------------ *
+  await setMainClockOffset(40 * MINUTE);
+  await patchFetch('rate-limit-token');
+  await fakeClaudeCode({ loggedIn: true, loginSucceeds: true, renewCredentials: credentialDocument({ accessToken: 'fixture-renewed-by-claude-code' }) });
+  await writeCredentials(home, credentialDocument({ expiresAt: Date.now() - MINUTE }));
+  await page.waitForTimeout(2500);
+  await patchFetch('success');
+  const renewed = claudeOf(await page.evaluate(() => window.lasmium.verifyAccount('claude')));
+  assert.equal(renewed.error, null, 'aucune bannière : Claude Code a renouvelé la connexion');
+  const renewCalls = await desktop.evaluate(() => globalThis.__claudeCode.calls.filter(call => call.args[0] === '-p'));
+  assert.equal(renewCalls.length, 1);
+  assert.ok(renewCalls.every(call => !call.apiKey && !call.setupToken && call.hidden));
+  const renewedFile = JSON.parse(await fs.readFile(path.join(home, '.claude', '.credentials.json'), 'utf8'));
+  assert.equal(renewedFile.claudeAiOauth.accessToken, 'fixture-renewed-by-claude-code');
+  await resetMainClock();
+
+  // ------------------------------------------------------------------ *
   // 5. Arrêt du suivi puis connexion qui n'aboutit pas : message clair et
   //    bouton « Connecter Claude », dernières valeurs effacées de la fiche.
   // ------------------------------------------------------------------ *
@@ -285,14 +315,14 @@ async function main() {
 
   // Aucun jeton ni contenu privé dans les données Lasmium TOKENS-HUB.
   const persisted = await fs.readFile(path.join(dataDir, 'state.json'), 'utf8');
-  for (const forbidden of ['fixture-live-access', 'fixture-rotated-refresh', 'fixture-old-access', 'fixture-old-refresh', 'smoke-api-key-never-used', 'smoke-setup-token-never-used']) {
+  for (const forbidden of ['fixture-live-access', 'fixture-rotated-refresh', 'fixture-old-access', 'fixture-old-refresh', 'fixture-renewed-by-claude-code', 'smoke-api-key-never-used', 'smoke-setup-token-never-used']) {
     assert.ok(!persisted.includes(forbidden), `state.json ne doit pas contenir ${forbidden}`);
   }
   assert.equal(await page.evaluate(() => JSON.stringify(state).includes('fixture-live-access')), false);
   const requests = await desktop.evaluate(() => globalThis.__claudeRequests);
   assert.ok(requests.usage >= 3, 'lectures initiales, panne et reprise doivent avoir appelé le service');
   await desktop.close(); desktop = null;
-  console.log('PASS: Connecter Claude en un clic (statut, jeton refusé, connexion officielle, lecture Horaire/Hebdo/Hebdo Fable, forfait Max), Claude Code lancé sans clé API ni jeton longue durée, migration claude-desktop-local, redémarrage, panne + prochain essai automatique + reprise (message unique), auth-rate-limit sans mention Desktop ni reconnexion, connexion non aboutie avec message clair, aucun jeton persisté dans Lasmium TOKENS-HUB.');
+  console.log('PASS: Connecter Claude en un clic (statut, jeton refusé, connexion officielle, renouvellement en arrière-plan par Claude Code sans bannière, lecture Horaire/Hebdo/Hebdo Fable, forfait Max), Claude Code lancé sans clé API ni jeton longue durée, migration claude-desktop-local, redémarrage, panne + prochain essai automatique + reprise (message unique), auth-rate-limit sans mention Desktop ni reconnexion, connexion non aboutie avec message clair, aucun jeton persisté dans Lasmium TOKENS-HUB.');
 }
 
 // Un smoke en échec se termine toujours : fermeture d'Electron bornée à 15 s,

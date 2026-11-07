@@ -2,6 +2,8 @@
 
 Application desktop Windows pour suivre les abonnements, quotas et crédits de **dix fournisseurs d’IA**. Un tableau de bord et un widget dans la zone de notification regroupent les abonnements et les API avec leurs ressources restantes et leurs dates de réinitialisation.
 
+**Version 0.6.14 — 7 novembre 2026 :** version **corrective** : la connexion Claude est renouvelée seule en arrière-plan par Claude Code (plus besoin de taper `claude` dans un terminal) et Ollama est de nouveau lu depuis son nouveau tableau de bord. Détails dans [CHANGELOG.md](CHANGELOG.md).
+
 **Version 0.6.13 — 5 novembre 2026 :** version **corrective** : l'icône Lasmium de la barre des tâches est donnée par l'application elle-même, sans dépendre du cache d'icônes de Windows. Détails dans [CHANGELOG.md](CHANGELOG.md).
 
 **Version 0.6.12 — 5 novembre 2026 :** version **corrective** : l'exécutable, la barre des tâches, le menu Démarrer et l'installeur affichent la marque Lasmium « L » au lieu de l'ancienne icône ProvidersBar. Détails dans [CHANGELOG.md](CHANGELOG.md).
@@ -19,6 +21,12 @@ Application desktop Windows pour suivre les abonnements, quotas et crédits de *
 **Version 0.6.6 — 5 novembre 2026 :** version **Qualité** : correction d'un timer orphelin du navigateur de connexion Ollama, URL de mise à jour vers le dépôt renommé, CI fusionnée et workflow de release automatisé, ESLint, 352 tests, renderer découpé. Toutes les fonctionnalités 0.6.5 sont conservées ; détails dans [CHANGELOG.md](CHANGELOG.md).
 
 **Version 0.6.5 — 4 novembre 2026 :** **mise à jour automatique signée** du portable, vérifiée par manifeste Ed25519 et SHA-256, avec remplacement après fermeture et conservation stricte de `data/` ; **canary live** prêt à recevoir des clés de test locales. Toutes les fonctionnalités 0.5.0 sont conservées. Détails dans [CHANGELOG.md](CHANGELOG.md), [updates.md](docs/updates.md), la [matrice fournisseurs](docs/provider-matrix.md) et le [runbook](docs/runbook-connectors.md).
+
+## Maintenance 0.6.14
+
+- **Claude** : renouvellement délégué à Claude Code en mode silencieux (`claude -p`, Haiku, sans outil ni session enregistrée) avant tout échange OAuth propre, au plus toutes les 15 minutes.
+- **Ollama** : lecture de `ollama.com/dashboard` (`#dashboard-plan`, `#dashboard-included`, `#extra-usage-balance`), repli sur `/settings` ; redirections traitées comme session expirée.
+- **Qualité** : 374 tests, lint sans erreur, trois smoke tests Windows.
 
 ## Maintenance 0.6.13
 
@@ -198,7 +206,7 @@ Une seule connexion : ton **abonnement Claude** (Pro ou Max), via le Claude Code
 
 **Connexions → Anthropic Claude → Connecter Claude** : si Claude Code est déjà connecté à ton compte Claude, la lecture est immédiate ; sinon Lasmium TOKENS-HUB lance la connexion officielle (`claude auth login --claudeai`), qui s’ouvre dans ton navigateur. Le forfait (Pro, Max) et le compte sont ensuite affichés. Claude Code est toujours lancé **sans** `ANTHROPIC_API_KEY` ni `CLAUDE_CODE_OAUTH_TOKEN` : une clé API ou un jeton longue durée présents dans l’environnement ne sont jamais utilisés (le jeton longue durée n’a d’ailleurs pas accès aux quotas).
 
-Les quotas (Horaire, Hebdo, Hebdo Fable et autres limites par modèle) sont lus auprès d’Anthropic **toutes les 5 minutes** : une lecture par minute déclenchait des refus prolongés. La connexion est renouvelée par Lasmium TOKENS-HUB dans le fichier officiel de Claude Code, sans jamais copier de jeton vers le renderer ou les données de l’application ; toute nouvelle connexion de Claude Code est détectée en deux secondes.
+Les quotas (Horaire, Hebdo, Hebdo Fable et autres limites par modèle) sont lus auprès d’Anthropic **toutes les 5 minutes** : une lecture par minute déclenchait des refus prolongés. À l’expiration, la connexion est renouvelée **en arrière-plan par Claude Code lui-même** (une courte commande silencieuse, sans fenêtre, au plus toutes les 15 minutes) : plus besoin d’ouvrir un terminal et de taper `claude`. Si cela échoue, Lasmium TOKENS-HUB renouvelle la connexion dans le fichier officiel de Claude Code, sans jamais copier de jeton vers le renderer ou les données de l’application ; toute nouvelle connexion de Claude Code est détectée en deux secondes.
 
 La fiche n’a que trois états : **connecté** (« Vérifier maintenant »), **dernières valeurs affichées** avec l’heure du prochain essai automatique (réseau, service indisponible, lecture ou renouvellement limités par Anthropic : rien à faire), et **reconnexion nécessaire** (« Connecter Claude »). Le relevé local de Claude Desktop n’est plus utilisé. [Détails du protocole et de la protection des jetons](docs/architecture.md).
 

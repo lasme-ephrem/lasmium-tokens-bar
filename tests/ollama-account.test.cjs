@@ -2,7 +2,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { parseOllamaCredits, fetchOllamaCredits, SETTINGS_URL, lastKnownUsageCredits, resetOllamaRateLimit } = require('../lib/ollama-account.cjs');
+const { parseOllamaCredits, parseOllamaDashboard, fetchOllamaCredits, SETTINGS_URL, DASHBOARD_URL, lastKnownUsageCredits, resetOllamaRateLimit } = require('../lib/ollama-account.cjs');
 const fixturePath = path.join(__dirname, 'fixtures', 'ollama-settings-2026-11-03.html');
 const page = (used='12.50', total='60.00') => `<main><h2>Included usage <span>Pro</span></h2><h3>Monthly usage</h3><span>$${used}</span> of <span>$${total}</span> used<div data-time="2026-10-07T12:00:00Z">Resets</div><h3>Extra usage</h3><span>$99.00</span><p>Subscription: $20</p></main>`;
 test('New Ollama portal (November 2026) exposes the Free usage meter and the Pay as you go balance', () => {
@@ -118,11 +118,14 @@ test('Missing dollar amounts, style widths, scripts and unrelated amounts cannot
 });
 test('Ollama uses only session-authenticated read-only settings; expired sessions remain unknown', async () => {
   resetOllamaRateLimit();
+  const urls = [];
   const s = await fetchOllamaCredits(async(url, options)=>{
-    assert.equal(url, SETTINGS_URL); assert.equal(options.method,'GET'); assert.equal(options.credentials,'include');
+    urls.push(url); assert.equal(options.method,'GET'); assert.equal(options.credentials,'include');
     assert.equal(options.redirect,'manual'); assert.equal(options.headers.Authorization,undefined);
-    return {ok:true,status:200,url:SETTINGS_URL,text:async()=>page()};
+    return {ok:true,status:200,url,text:async()=>page()};
   });
+  // The dashboard is read first; a page without its markers falls back to /settings.
+  assert.deepEqual(urls, [DASHBOARD_URL, SETTINGS_URL]);
   assert.equal(s.balances[0].remaining,47.5);
   for(const status of [302,401,403]) await assert.rejects(fetchOllamaCredits(async()=>({ok:false,status})),e=>e.code==='OLLAMA_SIGNIN');
   await assert.rejects(fetchOllamaCredits(async()=>({ok:false,status:429})),e=>e.code==='OLLAMA_RATE_LIMIT'&&/Trop de demandes/.test(e.message));
@@ -148,5 +151,59 @@ test('Ollama honors Retry-After on 429 with a local cooldown and never exposes a
   time += 60001;
   const snapshot = await fetchOllamaCredits(async () => ({ ok: true, status: 200, url: SETTINGS_URL, text: async () => page() }), now());
   assert.equal(snapshot.balances[0].remaining, 47.5);
+  resetOllamaRateLimit();
+});
+
+const dashboardPath = path.join(__dirname, 'fixtures', 'ollama-dashboard-2026-11.html');
+const dashboard = (plan = 'Pay as you go', balance = '$1.05', label = 'Free usage', meter = '100% <span>left</span>') =>
+  `<main><div>Usage credits<span id="dashboard-plan">${plan}</span></div><p><span id="extra-usage-balance">${balance}</span></p><div><div>${label}</div><p id="dashboard-included">${meter}</p></div></main>`;
+
+test('Ollama dashboard (November 2026) gives the plan, the included usage and the usage credits', () => {
+  const now = new Date('2026-11-07T20:00:00Z');
+  const snapshot = parseOllamaDashboard(fs.readFileSync(dashboardPath, 'utf8'), now);
+  assert.deepEqual(snapshot, { source: 'api', connectorVersion: 'ollama-monthly-credits-v1', updatedAt: now.toISOString(),
+    planTier: 'free', balanceLabel: 'Usage Free restant', balances: [], usageCredits: { currency: 'USD', remaining: 1.05 },
+    quotaRemaining: 100, resetAt: null, details: [] });
+  // No account identity ever reaches the snapshot.
+  assert.doesNotMatch(JSON.stringify(snapshot), /user|evening|@/i);
+});
+
+test('Ollama dashboard reads used/left meters, paid plans and thousands separators', () => {
+  const pro = parseOllamaDashboard(dashboard('Pro', '$1,234.50', 'Pro usage', '35% <span>used</span>'));
+  assert.equal(pro.planTier, 'pro');
+  assert.equal(pro.quotaRemaining, 65);
+  assert.deepEqual(pro.usageCredits, { currency: 'USD', remaining: 1234.5 });
+  assert.equal(parseOllamaDashboard(dashboard('Max', '$0.00', 'Max usage', '12.5% left')).quotaRemaining, 12.5);
+  assert.equal(parseOllamaDashboard(dashboard('Max', '$0.00', 'Max usage', '12.5% left')).planTier, 'max');
+  // Only one marker present still gives what is known, nothing guessed.
+  const onlyBalance = parseOllamaDashboard('<span id="extra-usage-balance">$3</span>');
+  assert.deepEqual([onlyBalance.usageCredits.remaining, onlyBalance.quotaRemaining, onlyBalance.planTier], [3, null, null]);
+});
+
+test('Ollama dashboard refuses unreadable values and recognizes sign-in pages in English and French', () => {
+  for (const html of [dashboard('Pro', 'unknown'), dashboard('Pro', '$1.05', 'Free usage', '140% left'), dashboard('Pro', '$1.05', 'Free usage', 'soon')])
+    assert.throws(() => parseOllamaDashboard(html));
+  assert.equal(parseOllamaDashboard('<main>Public page</main>'), null);
+  assert.equal(parseOllamaDashboard(null), null);
+  assert.equal(parseOllamaDashboard('<script>document.getElementById("extra-usage-balance")</script><main>Docs</main>'), null);
+  for (const html of ['<main><h1>Sign in to Ollama</h1></main>', '<main><button>Se connecter</button></main>', '<main>Continuer avec Google</main>'])
+    assert.throws(() => parseOllamaDashboard(html), { code: 'OLLAMA_SIGNIN' });
+});
+
+test('Ollama reads the dashboard first and treats redirects as an expired session', async () => {
+  resetOllamaRateLimit();
+  const urls = [];
+  const snapshot = await fetchOllamaCredits(async url => { urls.push(url); return { ok: true, status: 200, url, text: async () => dashboard() }; });
+  assert.deepEqual(urls, [DASHBOARD_URL]);
+  assert.equal(snapshot.usageCredits.remaining, 1.05);
+  // Electron rejects manual redirects with "Redirect was cancelled".
+  await assert.rejects(fetchOllamaCredits(async () => { throw new Error('Redirect was cancelled'); }), { code: 'OLLAMA_SIGNIN' });
+  await assert.rejects(fetchOllamaCredits(async () => ({ type: 'opaqueredirect', status: 0, ok: false })), { code: 'OLLAMA_SIGNIN' });
+  await assert.rejects(fetchOllamaCredits(async () => ({ ok: true, status: 200, url: 'https://ollama.com/auth/signin', text: async () => '' })), { code: 'OLLAMA_SIGNIN' });
+  // A missing dashboard (404) falls back to /settings instead of failing.
+  const fallback = [];
+  const old = await fetchOllamaCredits(async url => { fallback.push(url); return url === DASHBOARD_URL ? { ok: false, status: 404 } : { ok: true, status: 200, url, text: async () => page() }; });
+  assert.deepEqual(fallback, [DASHBOARD_URL, SETTINGS_URL]);
+  assert.equal(old.balances[0].remaining, 47.5);
   resetOllamaRateLimit();
 });

@@ -506,6 +506,8 @@ async function main() {
     const isolated = session.fromPartition('persist:ollama-account');
     isolated.protocol.handle('https', () => new Response('<!doctype html><title>Ollama account test</title><p>Signed-in settings</p>', { headers: { 'content-type': 'text/html' } }));
     isolated.fetch = async url => {
+      // Tableau de bord absent (404) : repli sur l'ancienne page /settings.
+      if (url === 'https://ollama.com/dashboard') return { ok: false, status: 404 };
       if (url !== 'https://ollama.com/settings') throw new Error('Unexpected settings URL');
       return { ok: true, status: 200, url, text: async () => '<h2>Included usage Pro</h2><h3>Monthly usage</h3><span>$12.50 of $60.00 used</span><span data-time="2026-10-07T12:00:00Z">Resets</span><h3>Usage credits</h3><span>$2.98</span><small>Current balance</small>' };
     };

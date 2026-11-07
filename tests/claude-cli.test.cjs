@@ -110,3 +110,19 @@ test('run arrête un Claude Code bloqué : délai de connexion distinct du déla
   await assert.rejects(status, { code: 'cli-failed' });
   assert.ok(launches.every(item => item.child.killed), 'les processus bloqués sont arrêtés');
 });
+
+test('renewConnection lance Claude Code sans fenêtre ni conversation, dans un dossier dédié', async t => {
+  const fs = require('node:fs/promises');
+  const os = require('node:os');
+  const dir = path.join(await fs.mkdtemp(path.join(os.tmpdir(), 'lasmium-renew-')), 'claude-code');
+  t.after(() => fs.rm(path.dirname(dir), { recursive: true, force: true }));
+  const { claude, launches } = cli(() => ({ code: 0, stdout: 'OK' }), { PATH: '', ANTHROPIC_API_KEY: 'cle' });
+  await claude.renewConnection({ cwd: dir });
+  assert.deepEqual(launches[0].args, ['-p', 'Réponds uniquement : OK', '--model', 'haiku', '--no-session-persistence', '--tools', '']);
+  assert.equal(launches[0].options.cwd, dir);
+  assert.equal(launches[0].options.windowsHide, true);
+  assert.equal(launches[0].options.env.ANTHROPIC_API_KEY, undefined, 'toujours sur l’abonnement');
+  assert.ok((await fs.stat(dir)).isDirectory(), 'dossier dédié créé');
+  const failing = cli(() => ({ code: 1, stderr: 'erreur' }));
+  await assert.rejects(failing.claude.renewConnection(), { code: 'cli-failed' });
+});
