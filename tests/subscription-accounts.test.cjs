@@ -132,6 +132,30 @@ test('SuperGrok usage settings pair each weekly heading with its own animated va
   assert.equal(snapshot.quotaWindows[0].resetAt, new Date(2026, 9, 21, 20, 14).toISOString());
   assert.equal(snapshot.quotaWindows[1].resetAt, new Date(2026, 9, 24, 16, 12).toISOString());
 });
+test('SuperGrok settings of November 2026 (plain-text percentages) keep Grok and Grok Bot apart and skip the breakdown', () => {
+  // Texte réel du panneau Paramètres → Utilisation (14 novembre 2026), sans number-flow.
+  const text = 'Paramètres\nCompte\nFacturation\nUtilisation\nUtilisation\nLimite hebdomadaire SuperGrok\n24 %\nutilisés\nRéinitialisation le 18 novembre 2026 à 19:14\nImagine\n21 %\nApp Builder\n3 %\nCrédits d\'utilisation supplémentaires\nSolde : 0,00 $US\nAcheter des crédits\nWeekly Grok Bot Limit\n8 %\nutilisés\nRéinitialisation le 21 novembre 2026 à 15:12';
+  const headings = ['Paramètres', 'Utilisation', 'Limite hebdomadaire SuperGrok', 'Weekly Grok Bot Limit'].map(innerText => ({ innerText, getClientRects: () => [1] }));
+  const panel = { innerText: text, getClientRects: () => [1], querySelectorAll: selector => selector.startsWith('h1') ? headings : [] };
+  for (const heading of headings) heading.parentElement = panel;
+  const read = value => JSON.parse(JSON.stringify(vm.runInNewContext(`(${inspectSubscriptionPage.toString()})('grok','https://grok.com')`, {
+    location: { origin: 'https://grok.com', pathname: '/' }, window: {},
+    document: { title: 'Grok', querySelectorAll: selector => selector.startsWith('button') ? [{ innerText: 'Log out', getAttribute: () => null, getClientRects: () => [1] }] : selector.startsWith('[role="dialog"]') ? [value] : [] },
+  })));
+  const result = read(panel);
+  assert.equal(result.blocked, undefined, 'plus de « quotas contradictoires »');
+  assert.equal(result.usageKind, 'supergrok-legacy');
+  const snapshot = parseAccountUsage('grok', result);
+  assert.deepEqual(snapshot.quotaWindows.map(window => [window.label, window.remaining]), [['Semaine', 76], ['Grok Bot · Semaine', 92]]);
+  assert.equal(snapshot.quotaWindows[0].resetAt, new Date(2026, 10, 18, 19, 14).toISOString());
+  assert.equal(snapshot.quotaWindows[1].resetAt, new Date(2026, 10, 21, 15, 12).toISOString());
+  assert.equal(snapshot.quotaRemaining, 76);
+  // Un titre sans pourcentage direct (seulement le détail par produit) ne crée aucune valeur.
+  const noTotal = { ...panel, innerText: 'Utilisation\nLimite hebdomadaire SuperGrok\nImagine\n21 %\nApp Builder\n3 %' };
+  const onlyGrok = [headings[1], headings[2]];
+  noTotal.querySelectorAll = selector => selector.startsWith('h1') ? onlyGrok : [];
+  assert.deepEqual(read(noTotal).windows, []);
+});
 test('A legacy two-limit panel remains separate even when shown under Dashboard Usage', () => {
   const flow = (value, direction) => ({ innerText: '', getClientRects: () => [1], getAttribute: name => name === 'aria-label' ? `${value}% used` : null,
     parentElement: { innerText: direction, getClientRects: () => [1] } });

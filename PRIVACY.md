@@ -1,6 +1,6 @@
 # Confidentialité — Lasmium TOKENS-HUB
 
-Ce document décrit le comportement de la version **0.6.15** ; la version
+Ce document décrit le comportement de la version **0.6.16** ; la version
 installée est affichée dans les réglages de l'application.
 
 Lasmium TOKENS-HUB est une application **locale pour Windows x64**. Elle ne dispose

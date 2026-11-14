@@ -1,5 +1,20 @@
 # Historique des versions
 
+## 0.6.16 — 14 novembre 2026
+
+Version **corrective** : Grok (xAI) est de nouveau lu. Toutes les
+fonctionnalités 0.6.15 sont conservées.
+
+### Corrections
+
+- Grok : depuis le 12 novembre, la page Paramètres → Utilisation affiche les
+  pourcentages en texte simple (« 24 % utilisés ») au lieu de compteurs animés.
+  Lasmium rangeait alors la limite SuperGrok et la limite Grok Bot sous la même
+  fenêtre et signalait des « quotas contradictoires ». Chaque limite est
+  désormais lue sous son propre titre : **Semaine** (SuperGrok) et
+  **Grok Bot · Semaine**, avec leur date de réinitialisation ; le détail par
+  produit (Imagine, App Builder) n'est jamais pris pour un total.
+
 ## 0.6.15 — 8 novembre 2026
 
 Version **corrective** : la connexion OrcaRouter se fait dans Chrome ou Edge,
