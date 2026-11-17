@@ -135,7 +135,7 @@ test('Default endpoint list covers every connector and every account origin with
   const endpoints = defaultEndpoints();
   const urls = endpoints.map(endpoint => endpoint.url);
   assert.equal(new Set(urls).size, urls.length);
-  for (const expected of ['https://openrouter.ai/api/v1/credits', 'https://api.deepseek.com/user/balance', 'https://api.runinfra.ai/v1/credits', 'https://api.orcarouter.ai/v1/dashboard/billing/subscription', 'https://api.anthropic.com/api/oauth/usage', 'https://chatgpt.com/', 'https://claude.ai/', 'https://grok.com/', 'https://z.ai/', 'https://ollama.com/settings']) {
+  for (const expected of ['https://openrouter.ai/api/v1/credits', 'https://api.deepseek.com/user/balance', 'https://api.runinfra.ai/v1/credits', 'https://api.anthropic.com/api/oauth/usage', 'https://chatgpt.com/', 'https://claude.ai/', 'https://grok.com/', 'https://z.ai/', 'https://ollama.com/settings']) {
     assert.ok(urls.includes(expected), `Missing endpoint ${expected}`);
   }
   for (const endpoint of endpoints) {

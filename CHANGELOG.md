@@ -1,5 +1,26 @@
 # Historique des versions
 
+## 0.6.17 — 17 novembre 2026
+
+Version de **retrait** : OrcaRouter n'est plus suivi. Toutes les autres
+fonctionnalités 0.6.16 sont conservées.
+
+### Retrait d'OrcaRouter
+
+- OrcaRouter disparaît du tableau de bord, du widget, des connexions, de la
+  santé des connexions, de l'export et des nouvelles installations : Lasmium
+  TOKENS-HUB suit désormais **neuf fournisseurs** (six abonnements, trois API).
+- Au premier démarrage de cette version, la fiche OrcaRouter, son historique de
+  relevés, sa santé et ses délais de reprise sont retirés de `state.json`, après
+  une copie intégrale de l'état dans `state.before-subscription-removal.json`
+  (jamais écrasée). La session OrcaRouter enregistrée (partition Electron) et
+  son profil Chrome dédié (`account-browsers/orcarouter`) sont effacés ; le
+  profil est retenté à chaque démarrage s'il était verrouillé.
+- Code retiré : lecteur de portefeuille, connexion Chrome/Edge et fenêtre
+  intégrée, canaux IPC `orca:*`, codes `ORCA_*`, stratégie `orca-session`,
+  origines OrcaRouter de l'allowlist des fenêtres de connexion, logo. Aucun
+  autre fournisseur n'est modifié.
+
 ## 0.6.16 — 14 novembre 2026
 
 Version **corrective** : Grok (xAI) est de nouveau lu. Toutes les

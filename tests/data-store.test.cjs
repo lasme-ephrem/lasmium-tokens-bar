@@ -37,14 +37,16 @@ function legacyState() {
   state.providers.push({ id: 'gemini', name: 'Gemini', type: 'subscription', active: true, subscriptionStatus: 'active', snapshot: null });
   state.providers.find(provider => provider.id === 'openai').importedCost = '103$';
   state.providers[0].notes = 'Tarif, offre et échéance non renseignés.';
-  state.providers.find(provider => provider.id === 'orcarouter').snapshot = { source: 'api', balances: [{ currency: 'USD', remaining: 100000000 }] };
+  // OrcaRouter (retiré en 0.6.17) tel qu'enregistré par la 0.6.16.
+  state.providers.push({ id: 'orcarouter', name: 'OrcaRouter', type: 'api', active: true, accountSession: { userId: 7, workspaceId: 8 }, snapshot: { source: 'api', connectorVersion: 'orca-wallet-v1', balances: [{ currency: 'USD', remaining: 20 }] } });
+  state.connectorHealth = { orcarouter: { state: 'ok' } };
   state.importedFrom = 'legacy.xlsx';
   state.settings.theme = 'light';
   delete state.apiCooldowns;
   state.history = [
     { id: 'gemini-old', providerId: 'gemini', quotaRemaining: 100 },
-    { id: 'orca-bad', providerId: 'orcarouter', source: 'api', balances: [{ currency: 'USD', remaining: 100000000 }] },
-    { id: 'orca-good', providerId: 'orcarouter', source: 'api', connectorVersion: 'orca-wallet-v1', balances: [{ currency: 'USD', remaining: 20 }] },
+    { id: 'orca-old', providerId: 'orcarouter', source: 'api', connectorVersion: 'orca-wallet-v1', balances: [{ currency: 'USD', remaining: 20 }] },
+    { id: 'zai-kept', providerId: 'zai', quotaRemaining: 40 },
   ];
   return state;
 }
@@ -55,12 +57,13 @@ test('a first launch creates, persists and reloads the seeded inventory', async 
     const loaded = await store.load();
     assert.equal(loaded.created, true);
     assert.equal(loaded.legacyGeminiProfile, false);
-    assert.equal(loaded.state.providers.length, 10);
+    assert.equal(loaded.legacyOrcaRouter, false);
+    assert.equal(loaded.state.providers.length, 9);
     assert.equal(loaded.state.settings.theme, 'system');
     assert.deepEqual(loaded.state.apiCooldowns, {});
 
     const persisted = await readState(dir);
-    assert.equal(persisted.providers.length, 10);
+    assert.equal(persisted.providers.length, 9);
     assert.equal(persisted.version, 1);
 
     const again = await createDataStore({ dataDir: dir }).load();
@@ -98,24 +101,28 @@ test('migrations run once, keep explicit light theme and write minimal backups w
     const loaded = await store.load();
 
     assert.equal(loaded.legacyGeminiProfile, true);
+    assert.equal(loaded.legacyOrcaRouter, true, 'main.cjs efface alors la session et le profil OrcaRouter');
+    assert.equal(loaded.state.providers.some(provider => provider.id === 'orcarouter'), false);
+    assert.deepEqual(Object.keys(loaded.state.connectorHealth), []);
     assert.equal(loaded.state.providers.some(provider => provider.id === 'gemini'), false);
     assert.equal(loaded.state.providers.some(provider => provider.id === 'claude'), true);
-    assert.equal(loaded.state.providers.length, 10);
+    assert.equal(loaded.state.providers.length, 9);
     assert.equal(Object.hasOwn(loaded.state, 'importedFrom'), false);
     assert.equal(loaded.state.providers.some(provider => Object.hasOwn(provider, 'importedCost')), false);
     // Choix explicite conservé, cooldowns initialisés sans perte.
     assert.equal(loaded.state.settings.theme, 'light');
     assert.deepEqual(loaded.state.apiCooldowns, {});
-    assert.deepEqual(loaded.state.history.map(entry => entry.id), ['orca-good']);
-    assert.equal(loaded.state.providers.find(provider => provider.id === 'orcarouter').snapshot, null);
+    assert.deepEqual(loaded.state.history.map(entry => entry.id), ['zai-kept']);
 
-    const backupNames = ['state.before-subscription-removal.json', 'state.before-orca-balance-fix.json'];
+    const backupNames = ['state.before-subscription-removal.json'];
+    assert.equal((await store.readJSON('state.before-subscription-removal.json')).providers.some(provider => provider.id === 'orcarouter'), true, 'copie intégrale avant retrait');
     for (const name of backupNames) assert.equal(await store.readJSON(name) !== null, true, name);
     const backupsBefore = new Map();
     for (const name of backupNames) backupsBefore.set(name, { contents: await fs.readFile(path.join(dir, name), 'utf8'), time: (await fs.stat(path.join(dir, name))).mtimeMs });
 
     const reloaded = await createDataStore({ dataDir: dir }).load();
     assert.equal(reloaded.legacyGeminiProfile, false);
+    assert.equal(reloaded.legacyOrcaRouter, false);
     assert.equal(reloaded.state.settings.theme, 'light');
     assert.deepEqual(reloaded.state.providers.map(provider => provider.id), loaded.state.providers.map(provider => provider.id));
     for (const name of backupNames) {

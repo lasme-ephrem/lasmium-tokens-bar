@@ -25,7 +25,6 @@ const apiSpending = require('./lib/api-spending.cjs');
 const { fetchUsage } = require('./lib/connectors.cjs');
 const { createCredentialStore } = require('./lib/credential-store.cjs');
 const { connectors, connectionInfo } = require('./lib/provider-catalog.cjs');
-const { ORCA_ORIGIN, fetchWallet, validateAccountRef, resetOrcaRateLimit } = require('./lib/orca-account.cjs');
 const { OLLAMA_ORIGIN, SETTINGS_URL, fetchOllamaCredits, lastKnownUsageCredits, resetOllamaRateLimit } = require('./lib/ollama-account.cjs');
 const { openOllamaBrowser, deleteAccountProfile, deleteOllamaAccountProfile } = require('./lib/account-browser.cjs');
 const accountBrowser = require('./lib/account-browser.cjs');
@@ -56,13 +55,12 @@ app.setPath('userData', dataDir);
 const store = createDataStore({ dataDir });
 const logger = createLogger({ dataDir });
 const backups = createBackupManager({ dataDir, logger });
-// Origines autorisées dans les fenêtres de connexion Electron. Seules les deux
-// fenêtres internes (OrcaRouter, Ollama) utilisent cette liste ; Claude, Grok,
-// Z.ai et OpenAI s'authentifient dans un Chrome/Edge externe ou via Codex.
-// `orcarouter.ai` sans www couvre une éventuelle redirection canonique du site.
-const ACCOUNT_ORIGINS = [...new Set([
-  OLLAMA_ORIGIN, ORCA_ORIGIN, ORCA_ORIGIN.replace('://www.', '://'), 'https://accounts.google.com',
-])];
+// Origines autorisées dans les fenêtres de connexion Electron. Seule la fenêtre
+// e-mail d'Ollama utilise cette liste ; Ollama (Google), Claude, Grok, Z.ai et
+// OpenAI s'authentifient dans un Chrome/Edge externe ou via Codex.
+const ACCOUNT_ORIGINS = [...new Set([OLLAMA_ORIGIN, 'https://accounts.google.com'])];
+// Partition de l'ancienne connexion OrcaRouter (retirée en 0.6.17), vidée au démarrage.
+const LEGACY_ORCA_PARTITION = 'persist:orcarouter-account';
 // Mode diagnostic (`verify:connections`, `update:portable`) : Chromium écrit
 // data/DevToolsActivePort et un autre processus peut s'en servir. La purge doit
 // donc laisser ce fichier intact tant que ce processus tourne.
@@ -96,7 +94,7 @@ const updater = createUpdater({
 const apiFetch = (...args) => session.defaultSession.fetch(...args);
 // Cooldowns 429 des clés API : store synchrone exigé par fetchUsage, adossé à
 // state.apiCooldowns (persisté, plafonné à 100 entrées) pour survivre au
-// redémarrage. Ne duplique pas la logique Ollama/Orca, qui vivent dans leur lib.
+// redémarrage. Ne duplique pas la logique Ollama, qui vit dans sa lib.
 const cooldowns = {
   get(fingerprint) {
     const until = state?.apiCooldowns?.[fingerprint];
@@ -131,7 +129,6 @@ const claudeCli = createClaudeCli();
 let quickDesiredHeight = 660;
 let connectorPacks = new Map();
 let connectorPackErrors = [];
-const orcaSession = () => session.fromPartition('persist:orcarouter-account');
 const ollamaSession = () => session.fromPartition('persist:ollama-account');
 let claudeTimer;
 const isConnected = p => connectors[p.id]?.mode === 'account' ? Boolean(p.accountSession) : credentials.has(p.id);
@@ -172,7 +169,6 @@ const providerFlows = createProviderFlows({
   BrowserWindow,
   secureAccountWindow,
   ACCOUNT_ORIGINS,
-  ORCA_ORIGIN,
   OLLAMA_ORIGIN,
   SETTINGS_URL,
   dataDir,
@@ -195,19 +191,13 @@ const providerFlows = createProviderFlows({
   claudeReader,
   claudeCli,
   antigravityTransport,
-  fetchWallet,
-  validateAccountRef,
-  orcaSession,
   fetchOllamaCredits,
   ollamaSession,
   openOllamaBrowser,
-  // Liaison tardive : les smoke tests remplacent le navigateur système.
-  openOrcaBrowser: (...args) => accountBrowser.openOrcaBrowser(...args),
   assumeOllamaFree,
 });
 const {
   syncClaudeWhenDue, verifyClaude, connectClaude, verifyAntigravity,
-  openOrcaAccount, verifyOrcaAccount,
   openOllamaSystemAccount, openOllamaAccount, verifyOllamaAccount,
 } = providerFlows;
 
@@ -230,8 +220,6 @@ const connectorSync = createConnectorSync({
   apiFetch,
   cooldowns,
   endpointFor: id => packFor(connectorPacks, id)?.endpoint,
-  fetchWallet,
-  orcaSession,
   fetchOllamaCredits,
   ollamaSession,
   openAiAccount,
@@ -282,12 +270,11 @@ function publicState() {
     return { snapshot: { ...p.snapshot, usageCredits: lastKnownUsageCredits(p.snapshot, history) } };
   }
   // Lien de compte exposé selon le fournisseur : parcours dédié (Antigravity,
-  // Claude, OpenAI, OrcaRouter, Ollama), lecteur de compte web, sinon rien.
+  // Claude, OpenAI, Ollama), lecteur de compte web, sinon rien.
   function presentAccountConnection(p) {
     if (p.id === 'antigravity') return { accountConnection: flows.antigravity };
     if (p.id === 'claude') return { accountConnection: flows.claude };
     if (p.id === 'openai') return { accountConnection: openAiAccount.info() };
-    if (p.id === 'orcarouter') return { accountConnection: flows.orcarouter };
     if (p.id === 'ollama') return { accountConnection: flows.ollama };
     if (connectors[p.id]?.browserAccount) return { accountConnection: subscriptionAccounts.info(p.id) };
     return {};
@@ -439,13 +426,12 @@ async function eraseAllData() {
   // Les parcours fermés peuvent avoir persisté leur état final : on revide
   // avant de supprimer les fichiers.
   await Promise.allSettled([store.settle(), credentials.settled()]);
-  await Promise.allSettled([orcaSession().clearStorageData(), ollamaSession().clearStorageData()]);
+  await Promise.allSettled([session.fromPartition(LEGACY_ORCA_PARTITION).clearStorageData(), ollamaSession().clearStorageData()]);
   await credentials.load({});
   claudeReader.clear();
-  // Cooldowns mémoire Ollama/Orca : un effacement complet ne doit pas laisser
+  // Cooldowns mémoire Ollama : un effacement complet ne doit pas laisser
   // l'utilisateur bloqué 60 s sur des compteurs qu'il vient de réinitialiser.
   resetOllamaRateLimit();
-  resetOrcaRateLimit();
   announced.clear();
   await Promise.allSettled([
     store.remove('state.json'),
@@ -501,8 +487,6 @@ function registerIpc() {
     apiSpending.markTopUp(provider(id), topUpId, offered);
     await persist(); broadcast(); return publicState();
   });
-  handle('orca:open-account', openOrcaAccount);
-  handle('orca:verify-account', verifyOrcaAccount);
   handle('ollama:open-account', openOllamaSystemAccount);
   handle('ollama:open-email', providerFlows.openOllamaEmailAccount);
   handle('ollama:verify-account', () => verifyOllamaAccount());
@@ -512,7 +496,6 @@ function registerIpc() {
     if (id === 'antigravity') return verifyAntigravity();
     if (id === 'claude') return connectClaude();
     if (id === 'openai') return openAiAccount.open();
-    if (id === 'orcarouter') return openOrcaAccount();
     if (id === 'ollama') return openOllamaAccount();
     return subscriptionAccounts.open(id);
   });
@@ -523,7 +506,6 @@ function registerIpc() {
       if (id === 'openai') await openAiAccount.read(provider(id).accountSession?.identity);
       else if (id === 'antigravity') await verifyAntigravity();
       else if (id === 'claude') await verifyClaude({ manual: true });
-      else if (id === 'orcarouter') await verifyOrcaAccount();
       else if (id === 'ollama') await verifyOllamaAccount();
       else await subscriptionAccounts.read(id, { background: true, interactive: true });
     } catch (error) {
@@ -601,12 +583,6 @@ function registerIpc() {
       if (id === 'openai') { await openAiAccount.disconnect(); await subscriptionAccounts.disconnect(id); delete provider(id).accountSession; }
       if (connectors[id]?.browserAccount) {
         await subscriptionAccounts.disconnect(id);
-        delete provider(id).accountSession;
-      }
-      if (id === 'orcarouter') {
-        await providerFlows.cancelOrca();
-        await orcaSession().clearStorageData();
-        await accountBrowser.deleteOrcaAccountProfile(dataDir);
         delete provider(id).accountSession;
       }
       if (id === 'ollama') {
@@ -713,6 +689,10 @@ else {
         sweepTemporaryProfiles: typeof accountBrowser.sweepTemporaryProfiles === 'function' ? accountBrowser.sweepTemporaryProfiles : null,
       });
       if (loaded.legacyGeminiProfile) await deleteAccountProfile(dataDir, 'gemini').catch(() => console.warn('Ancien profil Gemini web verrouillé ; son suivi est désactivé.'));
+      // OrcaRouter retiré : session Electron effacée avec la fiche ; le profil
+      // Chrome dédié est supprimé à chaque démarrage tant qu'il existe.
+      if (loaded.legacyOrcaRouter) await session.fromPartition(LEGACY_ORCA_PARTITION).clearStorageData().catch(() => logger.warn('Ancienne session OrcaRouter non effacée.'));
+      await accountBrowser.deleteOrcaAccountProfile(dataDir).catch(() => logger.warn('Ancien profil OrcaRouter verrouillé : il sera supprimé au prochain démarrage.'));
       const keyDocument = await store.readJSON('credentials.json');
       if (keyDocument) credentials.load(keyDocument);
       registerIpc();

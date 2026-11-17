@@ -49,8 +49,6 @@ function harness(overrides = {}, { providers, contract = false } = {}) {
     apiFetch: async () => {},
     cooldowns: { prune: () => {} },
     endpointFor: id => `https://pack.example/${id}`,
-    fetchWallet: async ref => { calls.push(['fetchWallet', ref]); return { updatedAt: new Date().toISOString() }; },
-    orcaSession: () => ({ fetch: async () => {} }),
     fetchOllamaCredits: async (fetchImpl, at, options) => { calls.push(['fetchOllamaCredits', options]); return { updatedAt: new Date().toISOString() }; },
     ollamaSession: () => ({ fetch: async () => {} }),
     openAiAccount: { read: async identity => { calls.push(['openai', identity]); } },
@@ -128,7 +126,6 @@ test('syncOne attend une synchronisation déjà en cours sans relire le fourniss
 
 test('chaque branche compte délègue à son lecteur, puis persiste et notifie une seule fois', async () => {
   const providers = [
-    makeProvider('orcarouter', { accountSession: { userId: 1, workspaceId: 2 } }),
     makeProvider('ollama', { accountSession: { kind: 'ollama-credits' } }),
     makeProvider('openai', { accountSession: { kind: 'openai-codex', identity: 'compte-1' } }),
     makeProvider('antigravity', { accountSession: { kind: 'antigravity-local' } }),
@@ -138,19 +135,18 @@ test('chaque branche compte délègue à son lecteur, puis persiste et notifie u
   const h = harness({ isBrowserAccount: id => id === 'grok' }, { providers });
   for (const provider of providers) assert.equal(await h.sync.syncOne(provider.id), h.state);
   assert.deepEqual(h.calls.filter(Array.isArray), [
-    ['fetchWallet', { userId: 1, workspaceId: 2 }],
     ['fetchOllamaCredits', { assumeFree: false }],
     ['openai', 'compte-1'],
     ['antigravity'],
     ['claude'],
     ['browser', 'grok', { background: true }],
   ]);
-  assert.equal(h.calls.filter(call => call === 'record').length, 2, 'OrcaRouter et Ollama enregistrent ici ; les autres lecteurs enregistrent eux-mêmes');
-  assert.deepEqual(h.calls.filter(call => call === 'persist' || call === 'notify'), Array(6).fill(['persist', 'notify']).flat());
+  assert.equal(h.calls.filter(call => call === 'record').length, 1, 'Ollama enregistre ici ; les autres lecteurs enregistrent eux-mêmes');
+  assert.deepEqual(h.calls.filter(call => call === 'persist' || call === 'notify'), Array(5).fill(['persist', 'notify']).flat());
   assert.ok(providers.every(provider => provider.lastAttempt !== null && provider.error === null));
   assert.equal(h.busy.size, 0);
   // Ollama Free vérifié ou abonnement expiré : la lecture suivante assume le Free.
-  const ollama = providers[1];
+  const ollama = providers[0];
   ollama.snapshot = { planTier: 'free' };
   await h.sync.syncOne('ollama');
   ollama.snapshot = null;
@@ -162,7 +158,6 @@ test('chaque branche compte délègue à son lecteur, puis persiste et notifie u
 
 test('une erreur conserve le dernier relevé, marque la santé et n’efface que les sessions explicitement invalides', async () => {
   const cases = [
-    ['orcarouter', 'ORCA_AUTH', true], ['orcarouter', 'ORCA_TRANSIENT', false], ['orcarouter', 'ORCA_RATE_LIMIT', false],
     ['ollama', 'OLLAMA_SIGNIN', true], ['ollama', 'OLLAMA_TRANSIENT', false], ['ollama', 'OLLAMA_RATE_LIMIT', false],
     ['openai', 'AUTH_REQUIRED', false], ['antigravity', 'ANTIGRAVITY_NOT_RUNNING', false],
     ['claude', 'auth-rate-limit', false], ['grok', 'ACCOUNT_LOGIN_PENDING', false],
@@ -170,13 +165,13 @@ test('une erreur conserve le dernier relevé, marque la santé et n’efface que
   for (const [id, code, cleared] of cases) {
     const context = `${id} / ${code}`;
     const previous = { updatedAt: '2026-11-04T09:00:00.000Z', balances: [{ currency: 'USD', remaining: 3 }] };
-    const session = id === 'orcarouter' ? { userId: 1, workspaceId: 2 } : { kind: id };
+    const session = { kind: id };
     const providers = [makeProvider(id, { accountSession: session, snapshot: previous })];
     const failure = Object.assign(new Error(`Échec ${code}.`), { code });
     const fail = async () => { throw failure; };
     const health = [];
     const h = harness({
-      fetchWallet: fail, fetchOllamaCredits: fail, openAiAccount: { read: fail }, verifyAntigravity: fail, verifyClaude: fail,
+      fetchOllamaCredits: fail, openAiAccount: { read: fail }, verifyAntigravity: fail, verifyClaude: fail,
       subscriptionAccounts: { read: fail }, isBrowserAccount: candidate => candidate === 'grok',
       markHealthFailure: (provider, error) => { health.push([provider.id, error.code]); },
     }, { providers });

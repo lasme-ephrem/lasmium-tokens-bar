@@ -123,7 +123,6 @@ const PROVIDER_LOGOS = {
   openrouter: 'openrouter.png',
   deepseek: 'deepseek.ico',
   runinfra: 'runinfra.svg',
-  orcarouter: 'orcarouter.png',
 };
 
 const hasConnector = provider => Boolean(provider.connector);

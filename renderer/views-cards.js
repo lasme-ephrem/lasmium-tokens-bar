@@ -56,7 +56,6 @@ function strategyLabel(strategy) {
     'openai-codex': 'Codex',
     'antigravity-local': 'Application locale',
     'ollama-browser': 'Navigateur',
-    'orca-session': 'Session OrcaRouter',
     'browser-session': 'Navigateur',
     'account-session': 'Compte',
     'api-key': 'Clé API',

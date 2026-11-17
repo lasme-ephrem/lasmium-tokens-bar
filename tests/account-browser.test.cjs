@@ -6,7 +6,7 @@ const fs = require('node:fs/promises');
 const os = require('node:os');
 const path = require('node:path');
 const {
-  ollamaCookie, orcaCookie, openSubscriptionBrowser, openAccountBrowser, openOrcaBrowser, createCdpPipeTransport,
+  ollamaCookie, openSubscriptionBrowser, openAccountBrowser, openOllamaBrowser, createCdpPipeTransport,
   readerArguments, stopBrowserProcess, sweepTemporaryProfiles, deleteOrcaAccountProfile,
 } = require('../lib/account-browser.cjs');
 
@@ -273,79 +273,42 @@ test('sweepTemporaryProfiles supprime un lien sans jamais effacer sa cible', asy
   assert.equal(await exists(path.join(temporary, 'lien')), false);
 });
 
-test('OrcaRouter : seuls les cookies www.orcarouter.ai et orcarouter.ai sont transférés', () => {
-  for (const domain of ['github.com', '.google.com', 'login.microsoftonline.com', 'evilorcarouter.ai', 'orcarouter.ai.evil.example', 'api.orcarouter.ai'])
-    assert.equal(orcaCookie({ domain, name: 'session', value: 'test' }), null, domain);
-  const apex = orcaCookie({ domain: '.orcarouter.ai', name: 'session', value: 'test', path: '/', secure: true, httpOnly: true, sameSite: 'Lax' });
-  assert.equal(apex.url, 'https://orcarouter.ai/'); assert.equal(apex.domain, '.orcarouter.ai'); assert.equal(apex.sameSite, 'lax');
-  const host = orcaCookie({ domain: 'www.orcarouter.ai', name: 'session', value: 'test', path: '/console' });
-  assert.equal(host.url, 'https://www.orcarouter.ai/console'); assert.equal(host.domain, undefined);
-});
-
-test('OrcaRouter : Chrome ordinaire sans pipe, puis lecteur sans fenêtre qui lit le compte et les cookies', async t => {
+// Fin de connexion des navigateurs ordinaires (Ollama) : sortie du processus ET
+// libération du profil ; Chrome rend la main aussitôt si le profil est ouvert.
+test('Connexion Ollama : la lecture attend que le profil soit libéré, même si Chrome a rendu la main', async t => {
   const dir = await tempDir(t);
   const login = new EventEmitter();
   login.exitCode = null; login.kill = () => {};
   const launches = [];
-  const browser = fakeBrowser();
-  const evaluated = [];
-  browser.setHandler((message, reply) => {
-    const result = (() => {
-      switch (message.method) {
-        case 'Target.getTargets': return { targetInfos: [{ type: 'page', url: 'https://accounts.google.com/x', targetId: 'G' }, { type: 'page', url: 'https://www.orcarouter.ai/console', targetId: 'O' }] };
-        case 'Target.attachToTarget': assert.equal(message.params.targetId, 'O'); return { sessionId: 'S' };
-        case 'Runtime.evaluate': evaluated.push(message.params.expression); return { result: { value: { userId: 12, workspaceId: 34 } } };
-        case 'Network.getCookies': return { cookies: [{ domain: 'www.orcarouter.ai', name: 'session', value: 'v', path: '/' }, { domain: '.github.com', name: 'gh', value: 'x', path: '/' }] };
-        default: return {};
-      }
-    })();
-    reply({ id: message.id, result });
-    if (message.method === 'Browser.close') queueMicrotask(() => browser.child.kill());
-  });
-  let profileLocked = false;
-  const native = await openOrcaBrowser(dir, {
+  let profileLocked = false, readerOpened = 0;
+  const native = await openOllamaBrowser(dir, {
     launchFailureMs: 0,
     profileInUse: () => profileLocked,
     findBrowser: async () => 'chrome.exe',
-    spawn: (executable, args, options) => {
-      launches.push({ args, options });
-      if (launches.length === 1) { queueMicrotask(() => login.emit('spawn')); return login; }
-      return browser.child;
-    },
+    openReader: async () => { readerOpened++; return { readOllamaCookies: async () => [{ url: 'https://ollama.com/', name: 'session', value: 'v' }], close: async () => {} }; },
+    spawn: (executable, args, options) => { launches.push({ args, options }); queueMicrotask(() => login.emit('spawn')); return login; },
   });
-  const [first] = launches;
-  assert.ok(!first.args.includes('--remote-debugging-pipe'), 'la connexion se fait dans un navigateur ordinaire');
-  assert.equal(first.args.at(-1), 'https://www.orcarouter.ai/console');
-  assert.ok(first.args.includes(`--user-data-dir=${path.resolve(dir, 'account-browsers', 'orcarouter')}`));
+  assert.ok(!launches[0].args.includes('--remote-debugging-pipe'), 'la connexion se fait dans un navigateur ordinaire');
+  assert.ok(launches[0].args.includes(`--user-data-dir=${path.resolve(dir, 'account-browsers', 'ollama')}`));
   assert.equal(native.phase(), 'login');
-  await assert.rejects(native.readOrcaSession(), { code: 'ORCA_LOGIN_PENDING' });
-  // Profil déjà ouvert dans une autre fenêtre : Chrome rend la main aussitôt,
-  // mais la connexion continue tant que le profil est utilisé.
+  await assert.rejects(native.readOllamaCookies(), { code: 'OLLAMA_LOGIN_PENDING' });
   profileLocked = true;
   login.emit('exit', 0);
-  assert.equal(native.phase(), 'login');
-  await assert.rejects(native.readOrcaSession(), { code: 'ORCA_LOGIN_PENDING' });
+  assert.equal(native.phase(), 'login', 'profil encore ouvert dans une autre fenêtre');
+  await assert.rejects(native.readOllamaCookies(), { code: 'OLLAMA_LOGIN_PENDING' });
   profileLocked = false;
   assert.equal(native.phase(), 'verifying');
-  const session = await native.readOrcaSession();
-  assert.deepEqual(session.ref, { userId: 12, workspaceId: 34 });
-  assert.deepEqual(session.cookies.map(cookie => cookie.name), ['session'], 'aucun cookie GitHub ou Google');
-  assert.ok(launches[1].args.includes('--headless=new'));
-  assert.ok(evaluated.every(expression => !/cookie|token/i.test(expression)), 'aucun jeton lu dans la page');
+  assert.deepEqual((await native.readOllamaCookies()).map(cookie => cookie.name), ['session']);
+  assert.equal(readerOpened, 1);
   assert.equal(native.phase(), 'closed');
-  assert.ok(browser.child.exitCode != null, 'le lecteur est arrêté');
-  // Déconnexion : le profil dédié est supprimé.
-  assert.equal(await exists(path.join(dir, 'account-browsers', 'orcarouter')), true);
-  await deleteOrcaAccountProfile(dir);
-  assert.equal(await exists(path.join(dir, 'account-browsers', 'orcarouter')), false);
 });
 
-test('Connexion OrcaRouter : un navigateur qui se ferme dès son ouverture est signalé clairement', async t => {
+test('Connexion Ollama : un navigateur qui se ferme dès son ouverture est signalé clairement', async t => {
   const dir = await tempDir(t);
   const login = new EventEmitter();
   login.kill = () => {};
   let readerOpened = 0;
-  const native = await openOrcaBrowser(dir, {
+  const native = await openOllamaBrowser(dir, {
     profileInUse: () => false,
     findBrowser: async () => 'chrome.exe',
     openReader: async () => { readerOpened++; throw new Error('ne doit pas être ouvert'); },
@@ -353,7 +316,18 @@ test('Connexion OrcaRouter : un navigateur qui se ferme dès son ouverture est s
   });
   login.emit('exit', 0);
   assert.equal(native.phase(), 'verifying');
-  await assert.rejects(native.readOrcaSession(), { code: 'BROWSER_FAILED', message: /fermé dès son ouverture/ });
+  await assert.rejects(native.readOllamaCookies(), { code: 'BROWSER_FAILED', message: /fermé dès son ouverture/ });
   assert.equal(readerOpened, 0, 'aucun lecteur lancé sur un profil jamais ouvert');
   assert.equal(native.phase(), 'closed');
+});
+
+test('OrcaRouter retiré : son ancien profil Chrome dédié est supprimé, rien d’autre', async t => {
+  const dir = await tempDir(t);
+  await fs.mkdir(path.join(dir, 'account-browsers', 'orcarouter', 'Default'), { recursive: true });
+  await fs.mkdir(path.join(dir, 'account-browsers', 'ollama'), { recursive: true });
+  await deleteOrcaAccountProfile(dir);
+  assert.equal(await exists(path.join(dir, 'account-browsers', 'orcarouter')), false);
+  assert.equal(await exists(path.join(dir, 'account-browsers', 'ollama')), true);
+  await deleteOrcaAccountProfile(dir); // absent : sans erreur
+  assert.equal(typeof require('../lib/account-browser.cjs').openOrcaBrowser, 'undefined');
 });

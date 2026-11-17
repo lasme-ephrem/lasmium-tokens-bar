@@ -31,7 +31,7 @@ async function main(argv = process.argv.slice(2)) {
     dirs: [path.join(ROOT, 'assets', 'connector-packs')],
     publicKey,
     appVersion: packageJson.version,
-    providers: ['openrouter', 'deepseek', 'runinfra', 'orcarouter'],
+    providers: ['openrouter', 'deepseek', 'runinfra'],
   });
   const report = { mode: live ? 'live' : 'fixtures', appVersion: packageJson.version, keySource: envFile.loaded ? '.local/canary.env' : 'environment', packs: [], errors: result.errors, checks: [] };
   let checked = 0;

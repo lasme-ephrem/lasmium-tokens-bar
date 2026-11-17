@@ -18,7 +18,6 @@ const { sanitizeStateForExport, FORBIDDEN_KEYS } = require('../lib/privacy-expor
 const { MAX_API_COOLDOWNS } = require('../lib/migrations.cjs');
 const { HISTORY_LIMIT } = require('../lib/data-store.cjs');
 const { OLLAMA_ORIGIN } = require('../lib/ollama-account.cjs');
-const { ORCA_ORIGIN } = require('../lib/orca-account.cjs');
 const { readerArguments } = require('../lib/account-browser.cjs');
 const { normalizeAllowlist, isAllowedOrigin, secureAccountWindow, applyDataDirAcl, purgeLeftovers } = require('../lib/window-security.cjs');
 
@@ -68,7 +67,7 @@ function accountOriginsFromMain() {
   const source = require('node:fs').readFileSync(path.join(root, 'main.cjs'), 'utf8');
   const block = source.match(/const ACCOUNT_ORIGINS = \[[\s\S]*?\];/);
   assert.ok(block, 'ACCOUNT_ORIGINS doit être déclaré dans main.cjs');
-  const value = vm.runInNewContext(`${block[0]}\nACCOUNT_ORIGINS;`, { Set, OLLAMA_ORIGIN, ORCA_ORIGIN });
+  const value = vm.runInNewContext(`${block[0]}\nACCOUNT_ORIGINS;`, { Set, OLLAMA_ORIGIN });
   assert.ok(Array.isArray(value));
   return value;
 }
@@ -130,14 +129,14 @@ test('le mode diagnostic ne conserve le port que sur demande explicite, jamais p
 
 test('l’allowlist des fenêtres de compte est stricte et limitée aux origines utiles', () => {
   const origins = accountOriginsFromMain();
-  const expected = [OLLAMA_ORIGIN, ORCA_ORIGIN, ORCA_ORIGIN.replace('://www.', '://'), 'https://accounts.google.com'];
+  const expected = [OLLAMA_ORIGIN, 'https://accounts.google.com'];
   assert.deepEqual([...origins].sort(), [...new Set(expected)].sort());
   for (const origin of origins) assert.match(origin, /^https:\/\//, `origine non HTTPS : ${origin}`);
-  for (const forbidden of ['https://claude.ai', 'https://grok.com', 'https://z.ai', 'https://chatgpt.com', 'http://127.0.0.1', 'http://localhost']) {
+  for (const forbidden of ['https://claude.ai', 'https://grok.com', 'https://z.ai', 'https://chatgpt.com', 'https://www.orcarouter.ai', 'http://127.0.0.1', 'http://localhost']) {
     assert.equal(origins.includes(forbidden), false, `${forbidden} ne doit jamais entrer dans l’allowlist`);
   }
   const flows = require('node:fs').readFileSync(path.join(root, 'lib', 'provider-flows.cjs'), 'utf8');
-  assert.equal((flows.match(/secureAccountWindow\(\w+, ACCOUNT_ORIGINS\)/g) || []).length, 2, 'les deux fenêtres internes utilisent l’allowlist');
+  assert.equal((flows.match(/secureAccountWindow\(\w+, ACCOUNT_ORIGINS\)/g) || []).length, 1, 'la fenêtre interne (e-mail Ollama) utilise l’allowlist');
 });
 
 test('une fenêtre de compte refuse toute navigation ou popup hors allowlist', () => {
@@ -146,10 +145,10 @@ test('une fenêtre de compte refuse toute navigation ou popup hors allowlist', (
   secureAccountWindow(win, origins);
   const navigate = url => { const event = navigationEvent(); win.webContents.emit('will-navigate', event, url); return !event.prevented; };
   const redirect = url => { const event = navigationEvent(); win.webContents.emit('will-redirect', event, url); return !event.prevented; };
-  for (const allowed of ['https://accounts.google.com/signin', 'https://ollama.com/settings', `${ORCA_ORIGIN}/console`]) {
+  for (const allowed of ['https://accounts.google.com/signin', 'https://ollama.com/settings']) {
     assert.equal(navigate(allowed), true, `${allowed} doit rester autorisé`);
   }
-  for (const denied of ['https://claude.ai/settings/usage', 'https://grok.com/', 'https://z.ai/', 'https://evil.test/', 'http://ollama.com/', 'data:text/html,x']) {
+  for (const denied of ['https://claude.ai/settings/usage', 'https://grok.com/', 'https://z.ai/', 'https://www.orcarouter.ai/console', 'https://evil.test/', 'http://ollama.com/', 'data:text/html,x']) {
     assert.equal(navigate(denied), false, `${denied} doit être bloqué`);
     assert.equal(redirect(denied), false, `${denied} ne doit pas passer par redirection`);
   }
@@ -208,7 +207,7 @@ test('les fenêtres UI sont isolées et la passerelle IPC est filtrée', async (
   }
   assert.equal((main.match(/secureWindow\((?:mainWindow|quickWindow)\)/g) || []).length, 2);
   const flowsSource = await read('lib/provider-flows.cjs');
-  assert.equal(((main + flowsSource).match(/devTools: false/g) || []).length >= 3, true, 'fenêtres UI et de connexion sans DevTools');
+  assert.equal(((main + flowsSource).match(/devTools: false/g) || []).length >= 2, true, 'fenêtres UI et fenêtre e-mail Ollama sans DevTools');
 
   // Un seul point d'entrée IPC, filtré sur la frame principale et l'URL exacte de l'UI.
   assert.equal((main.match(/ipcMain\.handle\(/g) || []).length, 1, 'tout l’IPC passe par le wrapper filtré');
@@ -272,8 +271,8 @@ test('l’export IPC ne sérialise jamais l’état brut et reste sans identité
   openai.accountSession = { kind: 'openai-codex', identity: 'sha256-identite-test' };
   openai.claudeSync = { nextAttemptAt: '2026-11-03T22:00:00.000Z', errorCode: null };
   openai.snapshot = { source: 'api', updatedAt: '2026-11-03T20:00:00.000Z', balances: [], quotaRemaining: 42, identity: 'identite-nested' };
-  const orca = state.providers.find(provider => provider.id === 'orcarouter');
-  orca.accountSession = { kind: 'orca-wallet', userId: 102647, workspaceId: 102238 };
+  const ollama = state.providers.find(provider => provider.id === 'ollama');
+  ollama.accountSession = { kind: 'ollama-credits', userId: 102647, workspaceId: 102238 };
   state.apiCooldowns = { 'openrouter:empreinte': 996 };
   state.history = [{ id: 'releve-1', providerId: 'openai', accountSession: { kind: 'openai-codex', identity: 'x' }, quotaRemaining: 42 }];
 

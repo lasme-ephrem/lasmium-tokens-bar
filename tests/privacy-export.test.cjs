@@ -10,8 +10,8 @@ function fixtureState() {
   openai.claudeSync = { nextAttemptAt: '2026-11-03T21:00:00.000Z', errorCode: null };
   openai.manualResets = { 'Codex et Work · Semaine': { date: '2026-11-10', time: '09:30', at: '2026-11-10T08:30:00.000Z' } };
   openai.snapshot = { source: 'api', updatedAt: '2026-11-03T20:00:00.000Z', balances: [], quotaRemaining: 42, identity: 'nested-identity' };
-  const orca = state.providers.find(provider => provider.id === 'orcarouter');
-  orca.accountSession = { kind: 'orca-wallet', userId: 7, workspaceId: 8, email: 'person@example.test' };
+  const ollama = state.providers.find(provider => provider.id === 'ollama');
+  ollama.accountSession = { kind: 'ollama-credits', userId: 7, workspaceId: 8, email: 'person@example.test' };
   state.apiCooldowns = { 'openrouter:abc': 996, 'deepseek:def': 997 };
   state.strategy = { enabled: true, contributor: false, inputTokens: 10000, outputTokens: 2000, cachePercent: 0, subscriptionModels: {}, disabledRoutes: [] };
   state.history = [

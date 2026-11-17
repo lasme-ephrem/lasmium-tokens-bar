@@ -1,6 +1,6 @@
 # Confidentialité — Lasmium TOKENS-HUB
 
-Ce document décrit le comportement de la version **0.6.16** ; la version
+Ce document décrit le comportement de la version **0.6.17** ; la version
 installée est affichée dans les réglages de l'application.
 
 Lasmium TOKENS-HUB est une application **locale pour Windows x64**. Elle ne dispose
@@ -22,8 +22,8 @@ Il ne constitue pas une certification de conformité juridique (voir
 | Réglages | Actualisation automatique, notifications, seuil de solde bas, thème clair/sombre/système | Saisie de l'utilisateur |
 | Santé des connecteurs | Par fournisseur : dernier succès, dernier échec, compteur d'échecs, code et message d'erreur, prochaine tentative | Résultat des lectures fournisseurs |
 | Clés API | Clés OpenRouter, DeepSeek et RunInfra, **chiffrées** (voir §3) | Saisie de l'utilisateur |
-| Sessions de connexion aux comptes | Profils Chrome/Edge dédiés et partitions Electron (`persist:ollama-account`, `persist:orcarouter-account`) : cookies de session, stockage local des portails fournisseurs | Connexion de l'utilisateur sur les sites officiels |
-| Identifiants de compte pseudonymes | Pour OpenAI : empreinte SHA-256 de l'adresse e-mail du compte Codex (jamais l'adresse en clair). Pour OrcaRouter : identifiants **numériques** de compte et d'espace de travail. | Réponses des services officiels |
+| Sessions de connexion aux comptes | Profils Chrome/Edge dédiés et partition Electron `persist:ollama-account` : cookies de session, stockage local des portails fournisseurs | Connexion de l'utilisateur sur les sites officiels |
+| Identifiants de compte pseudonymes | Pour OpenAI : empreinte SHA-256 de l'adresse e-mail du compte Codex (jamais l'adresse en clair). | Réponses des services officiels |
 | Cooldowns API | Empreintes SHA-256 de clés API et échéance de reprise après une réponse HTTP 429 (plafond 100 entrées) | Réponses des fournisseurs |
 | Jetons Claude Code | Jetons OAuth lus **en mémoire** depuis le fichier officiel de Claude Code, jamais copiés dans Lasmium TOKENS-HUB | Fichier local `~/.claude/.credentials.json` |
 | Journal local | Échecs de lecture (code et message), sauvegardes d'état, démarrages, disponibilité d'une mise à jour ; **sans clé, jeton, solde ni chemin absolu** | Fonctionnement de l'application |
@@ -52,7 +52,7 @@ Ce dossier contient notamment :
 - `updates/` : archives de mise à jour téléchargées, dossier de préparation et
   journal `update.log` du script d'installation ;
 - `account-browsers/<fournisseur>/` : profils Chrome/Edge dédiés aux comptes web ;
-- `Partitions/` : sessions Electron persistantes (Ollama, OrcaRouter) ;
+- `Partitions/` : session Electron persistante (Ollama) ;
 - `temporary-account-browsers/` : profils temporaires de lecture, purgés au démarrage ;
 - `state.before-*.json` : sauvegardes de migration, limitées aux **deux plus récentes** par la purge de démarrage.
 
@@ -81,9 +81,11 @@ Il ne faut jamais partager ni synchroniser ce dossier.
   **pipe local** (`--remote-debugging-pipe`) : aucun port TCP de débogage n'est
   ouvert pour lire une session.
 - **Suppression locale** : la déconnexion d'un fournisseur efface sa session
-  (profil ou partition) et sa clé API ; les sessions Ollama et OrcaRouter sont
-  effacées via `clearStorageData`, avec leur profil Chrome/Edge dédié
-  (`account-browsers/ollama`, `account-browsers/orcarouter`).
+  (profil ou partition) et sa clé API ; la session Ollama est
+  effacée via `clearStorageData`, avec son profil Chrome/Edge dédié
+  (`account-browsers/ollama`). Les anciennes données OrcaRouter (retiré en
+  0.6.17) sont effacées au premier démarrage de cette version, après une
+  sauvegarde de l'état.
 
 ## 3 ter. Lancement au démarrage
 
@@ -141,7 +143,7 @@ l'utilisateur, vers les services officiels qu'il a lui-même configurés :
 - `platform.claude.com` et `api.anthropic.com` (renouvellement OAuth et quotas Claude) ;
 - `chatgpt.com` / Codex local pour OpenAI ;
 - `claude.ai`, `grok.com`, `z.ai` (pages d'utilisation dans Chrome/Edge) ;
-- `ollama.com` et `www.orcarouter.ai` (sessions de compte) ;
+- `ollama.com` (session de compte) ;
 - services locaux en boucle locale : service Antigravity sur `127.0.0.1` (port
   du processus installé vérifié) et Codex `app-server` local ;
 - `github.com` (manifeste `latest.json` et archive ZIP de la release officielle,

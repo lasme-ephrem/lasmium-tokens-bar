@@ -13,7 +13,6 @@ lors de la dernière tentative.
 | Grok / SuperGrok | Abonnement navigateur | `browser-session` | auth, rate, drift, down | — |
 | Z.ai / GLM | Abonnement navigateur | `browser-session` | auth, rate, drift, down | — |
 | Ollama | Compte navigateur | `ollama-browser` | auth, down, drift | — |
-| OrcaRouter | Compte navigateur | `orca-session` | auth, down, drift | — |
 | OpenRouter | Clé API | `api-key` | auth, rate, réseau, drift | oui |
 | DeepSeek | Clé API | `api-key` | auth, rate, réseau, drift | oui |
 | RunInfra | Clé API | `api-key` | auth, rate, réseau, drift | oui |

@@ -9,7 +9,7 @@ manière de signaler une vulnérabilité.
 
 | Version | Support sécurité |
 | --- | --- |
-| 0.6.x (branche `main`) | oui — dernière version publiée : 0.6.16 |
+| 0.6.x (branche `main`) | oui — dernière version publiée : 0.6.17 |
 | 0.5.x et antérieures | non — mettre à jour vers la dernière version |
 
 Les correctifs de sécurité sont livrés dans la dernière version ; il n'existe
@@ -53,14 +53,11 @@ un utilisateur légitime qui contrôle sa session et son dossier de données.
   contexte désactivée, ni accès au pont IPC : l'IPC filtre la frame émettrice et
   l'URL exacte de l'interface ;
 - les fenêtres de connexion limitent navigation, redirections et popups à une
-  allowlist d'origines HTTPS (`ollama.com`, `orcarouter.ai`/`www`,
-  `accounts.google.com`) ; les fenêtres de l'interface refusent navigation,
+  allowlist d'origines HTTPS (`ollama.com`, `accounts.google.com`) ; les fenêtres de l'interface refusent navigation,
   popups et permissions ;
-- les connexions Ollama et OrcaRouter dans Chrome ou Edge utilisent un profil
-  dédié, sans pipe de débogage pendant la connexion ; après la fermeture, un
-  lecteur sans fenêtre (pipe local) ne lit que les cookies du fournisseur et,
-  pour OrcaRouter, les identifiants numériques du compte et de l'espace de
-  travail ;
+- la connexion Ollama dans Chrome ou Edge utilise un profil dédié, sans pipe de
+  débogage pendant la connexion ; après la fermeture, un lecteur sans fenêtre
+  (pipe local) ne lit que les cookies d'`ollama.com` ;
 - les lecteurs de comptes utilisent un pipe CDP local (`--remote-debugging-pipe`)
   et n'ouvrent **aucun port TCP de débogage** ;
 - l'export de données est nettoyé : aucune session, identité pseudonyme,
@@ -153,7 +150,7 @@ un utilisateur légitime qui contrôle sa session et son dossier de données.
 
 ## 6. Hors périmètre
 
-- La sécurité des services tiers (fournisseurs d'IA, Google, Ollama, OrcaRouter,
+- La sécurité des services tiers (fournisseurs d'IA, Google, Ollama,
   Anthropic, OpenAI), de leurs API et de leurs certificats.
 - La sécurité de Chrome, Edge, de leurs extensions et du profil personnel de
   l'utilisateur.

@@ -23,7 +23,7 @@ npm run connectors:canary:live
 
 Le script charge `.local/canary.env` sans écraser les variables déjà présentes dans
 PowerShell ou en CI. Il refuse de prétendre avoir testé quelque chose si aucune clé
-n'est fournie (code de sortie `2`). OrcaRouter n'a pas de clé API : il est ignoré.
+n'est fournie (code de sortie `2`).
 
 Pour la CI, utilise les secrets `LASMIUM_CANARY_OPENROUTER_KEY`,
 `LASMIUM_CANARY_DEEPSEEK_KEY` et `LASMIUM_CANARY_RUNINFRA_KEY`, avec un déclenchement
@@ -66,13 +66,13 @@ La commande refuse d'écraser une clé existante.
 npm run package:release
 npm run release:artifacts
 npm run release:verify
-npm run updater:sign -- --version 0.6.16 --notes "Corrections et mise à jour automatique"
+npm run updater:sign -- --version 0.6.17 --notes "Corrections et mise à jour automatique"
 ```
 
 `npm run release:verify` extrait l'archive dans un dossier temporaire avec le même
 `extractZip` que l'application, vérifie les fichiers indispensables, la version de
 `resources/app/package.json`, l'absence de tout dossier `data/` et la concordance
-du SHA-256 avec `SHA256SUMS-0.6.16.txt`.
+du SHA-256 avec `SHA256SUMS-0.6.17.txt`.
 
 Le manifeste est écrit dans `dist/latest.json`. Sans `--url`, l'URL GitHub Releases
 du dépôt `lasme-ephrem/lasmium-tokens-bar` est utilisée. `--notes-file chemin`
@@ -82,7 +82,7 @@ produite par `node scripts/release-notes.cjs`).
 Pour un autre hébergement :
 
 ```powershell
-npm run updater:sign -- --version 0.6.16 --url "https://mon-domaine.example/LasmiumTokensHub-0.6.16-win32-x64.zip" --out dist/latest.json
+npm run updater:sign -- --version 0.6.17 --url "https://mon-domaine.example/LasmiumTokensHub-0.6.17-win32-x64.zip" --out dist/latest.json
 ```
 
 ### Publier
@@ -91,17 +91,17 @@ Le workflow [`release.yml`](../.github/workflows/release.yml) remplace la
 fabrication et le dépôt manuels des fichiers sur GitHub Releases :
 
 1. vérifier que `package.json`, `CHANGELOG.md` et `README.md` annoncent la version ;
-2. créer et pousser le tag `v0.6.16`, identique à la version de `package.json`
+2. créer et pousser le tag `v0.6.17`, identique à la version de `package.json`
    (sinon le workflow échoue explicitement) ;
 3. le workflow rejoue `npm run verify`, `npm run lint` et `npm test`, fabrique
-   `dist/LasmiumTokensHub-0.6.16-win32-x64.zip` et `SHA256SUMS-0.6.16.txt`, contrôle
-   l'archive (`npm run release:verify`), extrait les notes de la section `## 0.6.16`
+   `dist/LasmiumTokensHub-0.6.17-win32-x64.zip` et `SHA256SUMS-0.6.17.txt`, contrôle
+   l'archive (`npm run release:verify`), extrait les notes de la section `## 0.6.17`
    du CHANGELOG, lance un smoke best-effort sur le binaire construit, puis crée la
    release GitHub en **brouillon** avec ces fichiers (ou complète la release du tag
    si elle existe déjà) ;
 4. `latest.json` : signé et joint par le workflow si le secret
    `LASMIUM_UPDATER_PRIVATE_KEY` est défini ; sinon, une notice le rappelle et il faut
-   le signer localement (`npm run updater:sign -- --version 0.6.16 --notes "..."`) puis
+   le signer localement (`npm run updater:sign -- --version 0.6.17 --notes "..."`) puis
    le joindre à la main **sous le nom exact `latest.json`** ;
 5. relire le brouillon et publier la release. Les applications installées ne voient
    la mise à jour qu'une fois la release publiée

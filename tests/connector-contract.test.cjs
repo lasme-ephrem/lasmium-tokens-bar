@@ -55,10 +55,8 @@ test('un relevé vide est refusé, sauf le Free Ollama explicitement sans montan
 
 test('les erreurs connues sont classées sans perdre le code source', () => {
   const mapping = [
-    [{ code: 'ORCA_AUTH' }, ERROR_CODES.AUTH_REQUIRED],
     [{ code: 'auth-rate-limit' }, ERROR_CODES.AUTH_RATE_LIMITED],
     [{ code: 'API_RATE_LIMIT' }, ERROR_CODES.RATE_LIMITED],
-    [{ code: 'ORCA_TRANSIENT' }, ERROR_CODES.UPSTREAM],
     [{ code: 'OLLAMA_SIGNIN' }, ERROR_CODES.AUTH_REQUIRED],
     [{ code: 'SCHEMA_DRIFT' }, ERROR_CODES.SCHEMA_DRIFT],
     [{ message: 'Aucun quota retourné par le fournisseur.' }, ERROR_CODES.PARSER_EMPTY],

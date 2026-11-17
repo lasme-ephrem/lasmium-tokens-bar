@@ -4,13 +4,13 @@ const { createSeed } = require('../lib/seed.cjs');
 const { summary, renewalOverdue, validatePatch, daysUntil, dateOnly, isTracked, expireSubscriptions, applyOllamaPlan } = require('../lib/domain.cjs');
 const { fetchUsage, parseResponse } = require('../lib/connectors.cjs');
 
-test('Selected inventory has 10 unique services, keeping six subscription services and four APIs', () => {
+test('Selected inventory has 9 unique services, keeping six subscription services and three APIs (OrcaRouter retiré)', () => {
   const s=createSeed();
   assert.equal(s.settings.theme,'system');
-  assert.equal(new Set(s.providers.map(p=>p.id)).size,10);
+  assert.equal(new Set(s.providers.map(p=>p.id)).size,9);
   assert.equal(s.providers.filter(p=>p.type==='subscription').length,6);
   assert.equal(s.providers.find(p=>p.id==='claude').plan,'Claude Pro');
-  assert.deepEqual(s.providers.filter(p=>p.type==='api').map(p=>p.id),['openrouter','deepseek','runinfra','orcarouter']);
+  assert.deepEqual(s.providers.filter(p=>p.type==='api').map(p=>p.id),['openrouter','deepseek','runinfra']);
   assert.ok(s.providers.every(p=>p.snapshot===null&&p.billingCycle==='unknown'));
   // 0.6.9 : plus aucun champ saisi à la main en dehors des quatre essentiels.
   for (const field of ['notes','statusMessage','reviewed','nextAmount','priceChangeDate']) assert.ok(s.providers.every(p=>!(field in p)),field);

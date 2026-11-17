@@ -49,7 +49,6 @@ function fakeContext() {
       { id: 'openrouter', name: 'OpenRouter' },
       { id: 'claude' },
       { id: 'antigravity' },
-      { id: 'orcarouter' },
     ],
     history,
     settings: { theme: 'dark' },
@@ -59,7 +58,7 @@ function fakeContext() {
   return {
     calls,
     state,
-    providerFlows: { info: () => { calls.push('providerFlows.info'); return { antigravity: 'flow-antigravity', claude: 'flow-claude', orcarouter: 'flow-orcarouter', ollama: 'flow-ollama' }; } },
+    providerFlows: { info: () => { calls.push('providerFlows.info'); return { antigravity: 'flow-antigravity', claude: 'flow-claude', ollama: 'flow-ollama' }; } },
     updater: { info: () => { calls.push('updater.info'); return { status: 'idle' }; } },
     connectorPacks: new Map([['openrouter', {}]]),
     connectorPackErrors: [{ file: 'a.json', provider: undefined, reason: 'r1', extra: 'ignoré' }, { file: 'b.json', provider: 'grok', reason: 'r2' }],
@@ -97,7 +96,7 @@ test('publicState expose l’état sans historique ni stratégie, avec les clés
   assert.deepEqual(result.connectorPackErrors, [{ file: 'a.json', provider: null, reason: 'r1' }, { file: 'b.json', provider: 'grok', reason: 'r2' }]);
   assert.equal(result.historyCount, 2);
   assert.equal(result.historyRevision, 'h2');
-  assert.deepEqual(result.summary, { total: 7, api: { month: { USD: 10 } } }, 'le résumé inclut les dépenses API du mois');
+  assert.deepEqual(result.summary, { total: 6, api: { month: { USD: 10 } } }, 'le résumé inclut les dépenses API du mois');
   assert.equal(result.desktop, true);
   // L'état en mémoire n'est jamais modifié : historique et champ obsolète restent en place.
   assert.equal(context.state.history.length, 2);
@@ -116,7 +115,7 @@ test('publicState présente chaque fournisseur : connecteur, connexion, synchron
   const context = fakeContext();
   const providers = buildPublicState(context)().providers;
   const byId = Object.fromEntries(providers.map(p => [p.id, p]));
-  assert.deepEqual(providers.map(p => p.id), ['ollama', 'openai', 'grok', 'openrouter', 'claude', 'antigravity', 'orcarouter']);
+  assert.deepEqual(providers.map(p => p.id), ['ollama', 'openai', 'grok', 'openrouter', 'claude', 'antigravity']);
 
   // Ollama : usageCredits recalculé depuis l'historique, le reste du relevé conservé.
   assert.deepEqual(byId.ollama, {
@@ -153,7 +152,6 @@ test('publicState présente chaque fournisseur : connecteur, connexion, synchron
 
   assert.equal(byId.claude.accountConnection, 'flow-claude');
   assert.equal(byId.antigravity.accountConnection, 'flow-antigravity');
-  assert.equal(byId.orcarouter.accountConnection, 'flow-orcarouter');
 });
 
 test('publicState lit ses dépendances dans un ordre stable', () => {
@@ -167,7 +165,6 @@ test('publicState lit ses dépendances dans un ordre stable', () => {
     'connectionInfo:openrouter', 'isConnected:openrouter', 'publicHealth',
     'connectionInfo:claude', 'isConnected:claude', 'publicHealth',
     'connectionInfo:antigravity', 'isConnected:antigravity', 'publicHealth',
-    'connectionInfo:orcarouter', 'isConnected:orcarouter', 'publicHealth',
     'spendingSummary', 'summary',
   ]);
 });

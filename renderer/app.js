@@ -294,21 +294,20 @@ async function runAction(action, button) {
     }
     return;
   }
-  if (['orca-open', 'orca-verify', 'ollama-open', 'ollama-verify', 'ollama-email'].includes(action)) {
-    const isOllama = action.startsWith('ollama-');
-    const name = isOllama ? 'Ollama' : 'OrcaRouter';
+  if (['ollama-open', 'ollama-verify', 'ollama-email'].includes(action)) {
+    const name = 'Ollama';
     button.disabled = true;
-    const errorNode = document.getElementById(`${isOllama ? 'ollama' : 'orca'}-account-error`);
+    const errorNode = document.getElementById('ollama-account-error');
     if (errorNode) errorNode.textContent = '';
     try {
       if (action === 'ollama-email') {
         await api.openOllamaEmail();
         toast('Utilise « Continue with email » sur Ollama.');
       } else if (action.endsWith('-open')) {
-        await (isOllama ? api.openOllamaAccount() : api.openOrcaAccount());
+        await api.openOllamaAccount();
         toast(`Connecte-toi sur ${name}. Les usages seront récupérés automatiquement.`);
       } else {
-        state = await (isOllama ? api.verifyOllamaAccount() : api.verifyOrcaAccount());
+        state = await api.verifyOllamaAccount();
         render();
         renderDialog();
         toast(`${name} synchronisé.`);

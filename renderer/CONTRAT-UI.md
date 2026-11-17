@@ -149,7 +149,7 @@ tabulaires). Aucune information n'est masquée par un compteur « +N ».
 <main class="quick">
   <header class="quick-head">…<button data-action="sync" aria-label="Synchroniser">…</button></header>
   <p class="quick-refresh-status">Auto 5 min · Claude 1 min
-    <span class="quick-count">10 comptes · 6 abonnements · 4 API</span></p>
+    <span class="quick-count">9 comptes · 6 abonnements · 3 API</span></p>
   <div class="quick-list">
     <p class="quick-group-title">Abonnements</p>
     <button class="quick-row quick-row-stacked resource-healthy" data-provider="claude" data-action="main"
@@ -240,7 +240,7 @@ Vérifiés par audit statique sur toutes les vues :
   application installée).
 - Connexions : `.connection-card`, `[data-open]` avec `data-tab="connection"`,
   `.connection-success`, `.dialog-body`, `#api-key`, `#connection-form`,
-  `#account-connection-progress`, `#orca-connection-progress`,
+  `#account-connection-progress`,
   `#ollama-connection-progress`.
 - Fiche (0.6.9) : abonnement `[data-dialog-tab="info|connection"]`, accès API
   `[data-dialog-tab="connection|spending"]` (`normalizeDialogTab` choisit le premier
@@ -612,7 +612,7 @@ vague produit. La CSP de `index.html` n'a pas changé.
 | Tests ciblés | `node --test tests/resource-levels.test.cjs` | 6/6 verts |
 | Rendu statique | harnais Node + `vm` avec DOM factice : `overview`, `subscriptions`, `connections`, `historyPage`, `settingsPage`, 10 `quickAccountRow`, 40 `dialogMarkup`, `shell` | aucune exception ; aucun `undefined`/`NaN` ; aucun appel `UsageStrategy` |
 | Application | harnais `vm` chargeant `app.js` avec API simulée | rendu initial, `openDetail`, changement de page, `receiveState`, effacement, repli Claude sans erreur |
-| Widget compact | harnais `vm` en `?mode=quick` | 10 `.quick-row` (6 abonnements + 4 API), 2 `.quick-group-title`, `.quick-refresh-status`, aucune section stratégie |
+| Widget compact | harnais `vm` en `?mode=quick` | 9 `.quick-row` (6 abonnements + 3 API), 2 `.quick-group-title`, `.quick-refresh-status`, aucune section stratégie |
 | **Chromium réel** (aperçu) | 360×520 @1x et @2x : `scrollHeight <= clientHeight`, chevauchement, hauteur des lignes, logos | 10 lignes (6 abonnements + 4 API), 2 titres de section, **hauteurs 36 px**, **liste 421 px / 421 px = aucun défilement**, 0 chevauchement, 10 logos chargés et visibles (20×20 px), footer dans la fenêtre, `scrollbar-width: thin` + règle `::-webkit-scrollbar` 5 px ; capture `test-results/after-widget.png` |
 | Petite hauteur | 360×320 : débordement volontaire | la liste défile (`overflow-y:auto`) sans chevauchement ; à 520 px elle ne défile pas |
 | États connus | quotas %, crédits USD, fenêtres multiples (Antigravity 5, Claude 3, Z.ai 2) | 10 lignes de 36 px, 0 débordement, segments « Hebdo 25 % · Horaire 80 % +1 », « 2,00 $US · Critique +1 » |

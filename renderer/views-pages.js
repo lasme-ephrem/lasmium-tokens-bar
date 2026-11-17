@@ -460,7 +460,7 @@ function apiSpendingBody(provider) {
 
 function accountConnectionBody(provider) {
   const prefix = (provider.connector.browserAccount || provider.connector.codexAccount || provider.connector.localAccount)
-    ? 'account' : provider.id === 'orcarouter' ? 'orca' : 'ollama';
+    ? 'account' : 'ollama';
   const progress = provider.accountConnection;
   const balanceLine = provider.connected && (provider.snapshot?.balances?.length || ollamaUsageCredits(provider))
     ? `<div class="source-note">`

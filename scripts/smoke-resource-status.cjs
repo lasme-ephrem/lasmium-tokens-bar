@@ -40,7 +40,7 @@ async function main() {
     // forcer l'état est la seule façon déterministe de tester les deux palettes.
     for (const surface of [dashboard, widget]) await surface.evaluate(theme => { state.settings.theme = theme; document.documentElement.dataset.theme = theme; }, theme);
     for (const currency of ['USD', 'EUR', 'CNY']) {
-      for (const id of ['openrouter', 'deepseek', 'runinfra', 'orcarouter']) {
+      for (const id of ['openrouter', 'deepseek', 'runinfra']) {
         await fixture(id, { balances: [{ currency, remaining: -0.08 }], quotaRemaining: null });
         for (const container of [card(id), row(id)]) {
           assert.match(await container.getAttribute('class'), /resource-empty/);
@@ -132,7 +132,7 @@ async function main() {
   await dashboard.screenshot({ path: path.join(results, 'resource-status-dashboard.png'), fullPage: true });
   await widget.screenshot({ path: path.join(results, 'resource-status-widget.png') });
   assert.deepEqual(errors, []);
-  console.log('PASS: negative balances red for all 4 APIs in USD/EUR/CNY and both themes; per-window quota statuses on dashboard cards (Hebdo/Horaire/Hebdo Argon) ; widget vertical complet (une ligne par fenêtre, aucune masquée, fact-values colorées, chip agrégé) ; global status only when every displayed limit is exhausted ; dashboard and widget.');
+  console.log('PASS: negative balances red for all 3 APIs in USD/EUR/CNY and both themes; per-window quota statuses on dashboard cards (Hebdo/Horaire/Hebdo Argon) ; widget vertical complet (une ligne par fenêtre, aucune masquée, fact-values colorées, chip agrégé) ; global status only when every displayed limit is exhausted ; dashboard and widget.');
 }
 // Un smoke en échec se termine toujours : fermeture d'Electron bornée à 15 s,
 // puis sortie explicite (sinon un Electron bloqué occupe la CI jusqu'au délai).

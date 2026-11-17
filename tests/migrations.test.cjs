@@ -2,7 +2,6 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { createSeed } = require('../lib/seed.cjs');
 const { removeUnusedProviders, addClaude, normalizeProviderPresentation } = require('../lib/migrations.cjs');
-const { removeInvalidOrcaBalances } = require('../lib/migrations.cjs');
 const { removeImportMetadata } = require('../lib/migrations.cjs');
 const { normalizeThemeSettings, addApiCooldowns, MAX_API_COOLDOWNS } = require('../lib/migrations.cjs');
 
@@ -26,25 +25,23 @@ test('Import cleanup preserves account sessions, readings and configured billing
   assert.equal(removeImportMetadata(result.state).changed, false);
 });
 
-test('Invalid Orca API balances are removed regardless of size; manual and other-provider records survive', () => {
+test('OrcaRouter is removed in 0.6.17 with its history, health and cooldowns; everything else survives', () => {
   const original = createSeed();
-  const bad = { source: 'api', balances: [{ currency: 'USD', remaining: 100000000 }] };
-  original.providers.find(p => p.id === 'orcarouter').snapshot = bad;
-  original.history = [
-    { providerId: 'orcarouter', ...bad },
-    { providerId: 'orcarouter', source: 'api', balances: [{ currency: 'USD', remaining: 20 }] },
-    { providerId: 'orcarouter', source: 'manual', balances: [{ currency: 'USD', remaining: 53.2 }] },
-    { providerId: 'deepseek', ...bad },
-    { providerId: 'orcarouter', ...bad, connectorVersion: 'orca-wallet-v1' },
-  ];
+  original.providers.push({ id: 'orcarouter', type: 'api', active: true, accountSession: { userId: 7, workspaceId: 8 }, snapshot: { source: 'api', connectorVersion: 'orca-wallet-v1', balances: [{ currency: 'USD', remaining: 53.2 }] } });
+  original.history = [{ providerId: 'orcarouter', balances: [{ remaining: 53.2 }] }, { providerId: 'deepseek', balances: [{ remaining: 8.43 }] }];
+  original.connectorHealth = { orcarouter: { state: 'ok' }, deepseek: { state: 'ok' } };
+  original.apiCooldowns = { 'orcarouter:empreinte': 1, 'deepseek:empreinte': 2 };
   const before = structuredClone(original);
-  const result = removeInvalidOrcaBalances(original);
+  const result = removeUnusedProviders(original);
   assert.equal(result.changed, true);
-  assert.equal(result.state.providers.find(p => p.id === 'orcarouter').snapshot, null);
-  assert.deepEqual(result.state.history, before.history.slice(2));
-  assert.deepEqual(result.state.providers.filter(p => p.id !== 'orcarouter'), before.providers.filter(p => p.id !== 'orcarouter'));
-  assert.deepEqual(original, before);
-  assert.equal(removeInvalidOrcaBalances(result.state).changed, false);
+  assert.deepEqual(result.state.providers, before.providers.filter(p => p.id !== 'orcarouter'));
+  assert.deepEqual(result.state.history, [before.history[1]]);
+  assert.deepEqual(result.state.connectorHealth, { deepseek: { state: 'ok' } });
+  assert.deepEqual(result.state.apiCooldowns, { 'deepseek:empreinte': 2 });
+  assert.deepEqual(result.state.settings, before.settings);
+  assert.deepEqual(original, before, 'la migration ne modifie pas l’état source');
+  assert.equal(removeUnusedProviders(result.state).changed, false);
+  assert.equal(createSeed().providers.some(p => p.id === 'orcarouter'), false, 'plus proposé aux nouvelles installations');
 });
 
 test('Removing unused providers preserves remaining subscriptions, remaining balances, settings and history', () => {
@@ -56,8 +53,8 @@ test('Removing unused providers preserves remaining subscriptions, remaining bal
   const before = structuredClone(original);
   const result = removeUnusedProviders(original);
   assert.equal(result.changed, true);
-  assert.equal(result.state.providers.length, 10);
-  assert.deepEqual(result.state.providers, before.providers.slice(0, 10));
+  assert.equal(result.state.providers.length, 9);
+  assert.deepEqual(result.state.providers, before.providers.slice(0, 9));
   assert.deepEqual(result.state.history, before.history.slice(0, 2));
   assert.deepEqual(result.state.settings, before.settings);
   assert.deepEqual(original, before);
@@ -70,7 +67,7 @@ test('Removing Gemini web preserves other accounts and drops the obsolete strate
   state.strategy={enabled:false,contributor:false,inputTokens:4321,disabledRoutes:['openrouter:luna'],subscriptionModels:{gemini:'geminiFlash',ollama:'kimi','antigravity-gemini':'geminiFlash'}};
   const before=structuredClone(state), result=removeUnusedProviders(state);
   assert.equal(result.changed,true);
-  assert.equal(result.state.providers.length,10);
+  assert.equal(result.state.providers.length,9);
   assert.deepEqual(result.state.providers,before.providers.filter(p=>p.id!=='gemini'));
   assert.deepEqual(result.state.history,[before.history[1]]);
   // La fonctionnalité d'ordre de consommation est retirée : le champ disparaît.
@@ -105,7 +102,7 @@ test('Adding Claude to older inventory preserves account settings, history and u
   state.history=[{providerId:'zai',quotaRemaining:21}];
   const before=structuredClone(state), result=addClaude(state);
   assert.equal(result.changed,true);
-  assert.equal(result.state.providers.length,10);
+  assert.equal(result.state.providers.length,9);
   assert.deepEqual(result.state.providers.filter(p=>p.id!=='claude'),before.providers);
   assert.deepEqual(result.state.history,before.history);
   assert.deepEqual(result.state.settings,before.settings);

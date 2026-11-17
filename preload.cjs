@@ -7,8 +7,6 @@ contextBridge.exposeInMainWorld('lasmium', {
   stopApiSpending: id => ipcRenderer.invoke('api:spending-stop', id),
   markTopUp: (id, topUpId, offered) => ipcRenderer.invoke('api:top-up', id, topUpId, offered),
   connect: (id, key) => ipcRenderer.invoke('provider:connect', id, key),
-  openOrcaAccount: () => ipcRenderer.invoke('orca:open-account'),
-  verifyOrcaAccount: () => ipcRenderer.invoke('orca:verify-account'),
   openOllamaAccount: () => ipcRenderer.invoke('ollama:open-account'),
   openOllamaEmail: () => ipcRenderer.invoke('ollama:open-email'),
   verifyOllamaAccount: () => ipcRenderer.invoke('ollama:verify-account'),

@@ -99,7 +99,7 @@ test('Adding Antigravity preserves Gemini web sessions, existing billing and his
  const state=createSeed();state.providers=state.providers.filter(p=>p.id!=='antigravity');
  state.providers.push({id:'gemini',type:'subscription'});const gemini=state.providers.find(p=>p.id==='gemini');Object.assign(gemini,{name:'Gemini',accountSession:{kind:'subscription-browser'},amount:109.99,snapshot:{quotaRemaining:100}});
  state.history.push({providerId:'gemini',quotaRemaining:100});const before=structuredClone(state);
- const result=addAntigravity(state);assert.equal(result.changed,true);assert.equal(result.state.providers.length,11);
+ const result=addAntigravity(state);assert.equal(result.changed,true);assert.equal(result.state.providers.length,10);
  assert.deepEqual(result.state.providers.find(p=>p.id==='gemini'),{...gemini,name:'Gemini web'});
  assert.equal(result.state.providers.find(p=>p.id==='antigravity').snapshot,null);
  assert.deepEqual(result.state.history,before.history);assert.deepEqual(state,before);assert.equal(addAntigravity(result.state).changed,false);

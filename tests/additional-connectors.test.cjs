@@ -43,10 +43,8 @@ test('OpenRouter keeps a plausible overdraft and rejects impossible balances', (
   assert.throws(() => parseResponse('openrouter', { data: { total_credits: 0, total_usage: 2 } }), /incohérent/);
 });
 
-test('OrcaRouter API-key limits are never interpreted as wallet balances, even when plausible', () => {
-  for (const amount of [100000000, 53.2, 0, '12.50', -0.2, null]) {
-    assert.throws(() => parseResponse('orcarouter', { object: 'billing_subscription', hard_limit_usd: amount, total_usage: 0, access_until: 0 }), /plafond de la clé/);
-  }
+test('OrcaRouter (retiré en 0.6.17) n’a plus de connecteur API', () => {
+  assert.throws(() => parseResponse('orcarouter', { object: 'billing_subscription', hard_limit_usd: 53.2, total_usage: 0 }), /Connecteur non disponible/);
 });
 
 test('Additional connectors send only fixed read-only authenticated requests and sanitize errors', async () => {

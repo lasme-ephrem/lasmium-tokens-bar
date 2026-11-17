@@ -1,6 +1,6 @@
 // Smoke test Electron 0.3.0 — renderer refondu + socle main.cjs durci.
 // Couvre : inventaire, stratégie, édition, historique, clés API chiffrées,
-// sessions de compte (Orca/Ollama/OpenAI/Grok/Z.ai/Claude/Antigravity), états
+// sessions de compte (Ollama/OpenAI/Grok/Z.ai/Claude/Antigravity), états
 // de connexion transitoires/expirés, thème clair/sombre/système, version
 // dynamique, export nettoyé, effacement des données, widget, tray, redémarrage.
 // Aucune requête réelle vers un fournisseur : les transports sont simulés.
@@ -152,7 +152,7 @@ async function main() {
   assert.equal(brandLogo.loaded, true, 'le logo Lasmium doit être chargé');
   assert.ok(brandLogo.width >= 32, `logo Lasmium trop petit : ${brandLogo.width}px`);
   assert.equal(await page.title(), 'Lasmium TOKENS-HUB');
-  assert.equal(await page.locator('.cards .card').count(), 10);
+  assert.equal(await page.locator('.cards .card').count(), 9);
   // Recommandations/ordre de consommation retirés (T16) : aucun panneau, action ni
   // texte de stratégie dans le tableau de bord.
   assert.equal(await page.locator('.strategy-panel, .strategy-current, .strategy-next, .strategy-api, .strategy-details, #strategy-form, [data-action="strategy-settings"]').count(), 0);
@@ -216,9 +216,9 @@ async function main() {
   assert.equal(await page.locator('.data-table tbody tr').count(), 6);
   await page.screenshot({ path: path.join(results, 'subscriptions.png'), fullPage: true });
   await page.locator('[data-nav="connections"]').click();
-  assert.equal(await page.locator('.connection-card').count(), 10);
+  assert.equal(await page.locator('.connection-card').count(), 9);
   assert.equal(await page.locator('.health-panel').count(), 1);
-  assert.equal(await page.locator('.health-row').count(), 10);
+  assert.equal(await page.locator('.health-row').count(), 9);
   assert.match(await page.locator('.health-panel').innerText(), /Santé des connexions/);
   assert.match(await page.locator('.health-packs').innerText(), /Packs signés actifs/);
   const packState = await page.evaluate(() => window.lasmium.getState());
@@ -231,7 +231,7 @@ async function main() {
   assert.equal(await page.locator('.cards .card').count(), 1);
   await page.locator('#search').fill('');
   await page.locator('[data-filter="api"]').click();
-  assert.equal(await page.locator('.cards .card').count(), 4);
+  assert.equal(await page.locator('.cards .card').count(), 3);
   await page.locator('[data-filter="all"]').click();
 
   // ------------------------------------------------------------------ *
@@ -408,121 +408,11 @@ async function main() {
   await closeDialog(page);
 
   // ------------------------------------------------------------------ *
-  // OrcaRouter : session conservée sur erreur transitoire, perdue sur auth
-  // invalide, puis reconnexion. Couvre P0-5/P0-6 de l'analyse.
+  // OrcaRouter retiré en 0.6.17 : aucune carte, aucune connexion, aucune IPC.
   // ------------------------------------------------------------------ *
-  await desktop.evaluate(({ session }) => {
-    const isolated = session.fromPartition('persist:orcarouter-account');
-    isolated.protocol.handle('https', () => new Response('<!doctype html><title>Orca account test</title><p>Simulated login page</p>', { headers: { 'content-type': 'text/html' } }));
-    isolated.fetch = async (url, options) => {
-      if (options.headers['New-API-User'] !== '12' || options.headers['X-Workspace-Id'] !== '34') throw new Error('Wrong workspace');
-      if (url === 'https://www.orcarouter.ai/api/user/self') return { ok: true, json: async () => ({ success: true, data: { id: 12, active_workspace: { id: 34, wallet_quota: 26600000 } } }) };
-      if (url === 'https://www.orcarouter.ai/api/status') return { ok: true, json: async () => ({ success: true, data: { quota_per_unit: 500000 } }) };
-      throw new Error('Unexpected wallet endpoint');
-    };
-  });
-  // Connexion dans Chrome ou Edge (navigateur système simulé) : aucune fenêtre
-  // intégrée ; la session est lue après la fermeture du navigateur.
-  await desktop.evaluate(() => {
-    const fake = globalThis.__orcaBrowser = { phase: 'login', opened: 0, closed: 0 };
-    process.mainModule.require('./lib/account-browser.cjs').openOrcaBrowser = async () => {
-      fake.opened++; fake.phase = 'login';
-      return {
-        isOpen: () => fake.phase !== 'closed',
-        phase: () => fake.phase,
-        async readOrcaSession() {
-          if (fake.phase === 'login') throw Object.assign(new Error('Termine la connexion OrcaRouter dans Chrome ou Edge.'), { code: 'ORCA_LOGIN_PENDING' });
-          fake.phase = 'closed';
-          return { ref: { userId: 12, workspaceId: 34 }, cookies: [{ url: 'https://www.orcarouter.ai/', name: 'smoke-orca', value: 'fixture', path: '/', secure: true }] };
-        },
-        async close() { fake.closed++; fake.phase = 'closed'; },
-      };
-    };
-  });
-  await openProvider(page, 'orcarouter', 'connection');
-  assert.equal(await page.locator('#api-key').count(), 0);
-  const windowsBefore = desktop.windows().length;
-  await page.locator('[data-action="orca-open"]').click();
-  await page.waitForFunction(() => document.querySelector('#orca-connection-progress')?.textContent.includes('Chrome ou Edge'));
-  assert.ok((await page.locator('#orca-connection-progress').innerText()).includes('automatiquement'));
-  assert.equal(desktop.windows().length, windowsBefore, 'aucune fenêtre intégrée pour OrcaRouter');
-  assert.equal(await page.locator('.connection-success').count(), 0);
-  await desktop.evaluate(() => { globalThis.__orcaBrowser.phase = 'verifying'; });
-  await page.waitForSelector('.connection-success');
-  assert.deepEqual(await desktop.evaluate(async ({ session }) => ({
-    cookies: (await session.fromPartition('persist:orcarouter-account').cookies.get({ name: 'smoke-orca' })).length,
-    opened: globalThis.__orcaBrowser.opened, closed: globalThis.__orcaBrowser.closed,
-  })), { cookies: 1, opened: 1, closed: 1 });
-  assert.ok((await page.locator('.dialog-body').innerText()).includes('53,20'));
-  await page.screenshot({ path: path.join(results, 'orca-account.png') });
-  let orcaState = await page.evaluate(() => window.lasmium.getState());
-  assert.equal(orcaState.providers.find(p => p.id === 'orcarouter').snapshot.balances[0].remaining, 53.2);
-  assert.equal(orcaState.providers.find(p => p.id === 'orcarouter').connected, true);
-  // Erreur transitoire (5xx) : session et relevé conservés, reprise possible
-  // sans reconnexion (P0-5) — la session est écrite avant le premier fetch.
-  const patchOrcaSuccess = () => desktop.evaluate(({ session }) => {
-    session.fromPartition('persist:orcarouter-account').fetch = async url => {
-      if (url === 'https://www.orcarouter.ai/api/user/self') return { ok: true, json: async () => ({ success: true, data: { id: 12, active_workspace: { id: 34, wallet_quota: 26600000 } } }) };
-      return { ok: true, json: async () => ({ success: true, data: { quota_per_unit: 500000 } }) };
-    };
-  });
-  await desktop.evaluate(({ session }) => { session.fromPartition('persist:orcarouter-account').fetch = async () => ({ ok: false, status: 500 }); });
-  orcaState = await page.evaluate(() => window.lasmium.syncOne('orcarouter'));
-  const orcaTransient = orcaState.providers.find(p => p.id === 'orcarouter');
-  assert.match(orcaTransient.error, /indisponible \(HTTP 500\)/);
-  assert.equal(orcaTransient.connected, true);
-  assert.equal(orcaTransient.accountSession.userId, 12);
-  assert.equal(orcaTransient.snapshot.balances[0].remaining, 53.2);
-  await patchOrcaSuccess();
-  orcaState = await page.evaluate(() => window.lasmium.syncOne('orcarouter'));
-  assert.equal(orcaState.providers.find(p => p.id === 'orcarouter').error, null);
-  assert.equal(orcaState.providers.find(p => p.id === 'orcarouter').connected, true);
-  // 429 : cooldown serveur honoré (persisté en mémoire) et relevé conservé ;
-  // la reprise n'a lieu qu'après le délai, pas immédiatement.
-  await desktop.evaluate(({ session }) => { session.fromPartition('persist:orcarouter-account').fetch = async () => ({ ok: false, status: 429 }); });
-  orcaState = await page.evaluate(() => window.lasmium.syncOne('orcarouter'));
-  assert.match(orcaState.providers.find(p => p.id === 'orcarouter').error, /Trop de demandes/);
-  orcaState = await page.evaluate(() => window.lasmium.syncOne('orcarouter'));
-  assert.match(orcaState.providers.find(p => p.id === 'orcarouter').error, /Trop de demandes/);
-  assert.equal(orcaState.providers.find(p => p.id === 'orcarouter').connected, true);
-  // Délai écoulé : le store de cooldown est réinitialisé par l'application
-  // (équivalent d'une nouvelle tentative après 60 s) ; la lecture réussit.
-  await desktop.evaluate(() => process.mainModule.require('./lib/orca-account.cjs').resetOrcaRateLimit());
-  await patchOrcaSuccess();
-  orcaState = await page.evaluate(() => window.lasmium.syncOne('orcarouter'));
-  assert.equal(orcaState.providers.find(p => p.id === 'orcarouter').error, null);
-  // Session expirée : la connexion repasse « non connectée », le relevé reste.
-  await desktop.evaluate(({ session }) => { session.fromPartition('persist:orcarouter-account').fetch = async () => ({ ok: false, status: 401 }); });
-  orcaState = await page.evaluate(() => window.lasmium.syncOne('orcarouter'));
-  const orcaExpired = orcaState.providers.find(p => p.id === 'orcarouter');
-  assert.match(orcaExpired.error, /expirée/);
-  assert.equal(orcaExpired.connected, false);
-  assert.equal(orcaExpired.accountSession, undefined);
-  assert.equal(orcaExpired.snapshot.balances[0].remaining, 53.2);
-  // Reconnexion via la fenêtre de compte : la session est rétablie avant le relevé.
-  await desktop.evaluate(({ session }) => {
-    session.fromPartition('persist:orcarouter-account').fetch = async url => {
-      if (url === 'https://www.orcarouter.ai/api/user/self') return { ok: true, json: async () => ({ success: true, data: { id: 12, active_workspace: { id: 34, wallet_quota: 26600000 } } }) };
-      return { ok: true, json: async () => ({ success: true, data: { quota_per_unit: 500000 } }) };
-    };
-  });
-  // Sans Chrome ni Edge, la fenêtre intégrée isolée reste un recours.
-  await desktop.evaluate(() => {
-    process.mainModule.require('./lib/account-browser.cjs').openOrcaBrowser = async () => { throw new Error('Chrome ou Edge est nécessaire.'); };
-  });
-  await closeDialog(page);
-  await openProvider(page, 'orcarouter', 'connection');
-  const reconnected = desktop.waitForEvent('window');
-  await page.locator('[data-action="orca-open"]').click();
-  const reconnectWindow = await reconnected;
-  await reconnectWindow.waitForURL('https://www.orcarouter.ai/console');
-  assert.equal(await reconnectWindow.evaluate(() => typeof window.require), 'undefined');
-  assert.equal(await reconnectWindow.evaluate(() => typeof window.lasmium), 'undefined');
-  await reconnectWindow.evaluate(() => { localStorage.setItem('user', JSON.stringify({ id: 12 })); localStorage.setItem('active_workspace_id', '34'); });
-  await page.waitForSelector('.connection-success');
-  orcaState = await page.evaluate(() => window.lasmium.getState());
-  assert.equal(orcaState.providers.find(p => p.id === 'orcarouter').connected, true);
-  await closeDialog(page);
+  assert.equal(await page.locator('[data-open="orcarouter"]').count(), 0);
+  assert.equal(await page.evaluate(() => typeof window.lasmium.openOrcaAccount), 'undefined');
+  assert.equal((await page.evaluate(() => window.lasmium.getState())).providers.some(p => p.id === 'orcarouter'), false);
   await page.locator('[data-nav="overview"]').click();
   const router = page.locator('.card').filter({ has: page.locator('[data-open="openrouter"]') });
 
@@ -558,6 +448,15 @@ async function main() {
   assert.match(await page.locator('.dialog-body').innerText(), /Réserve supplémentaire/);
   assert.equal(ollamaState.providers.find(p => p.id === 'ollama').amount, null);
   assert.equal(ollamaState.providers.find(p => p.id === 'ollama').connected, true);
+  // Couvre P0-5/P0-6 : une panne passagère (HTTP 500) conserve la session et le
+  // dernier relevé ; seule une session refusée (redirection) l'efface.
+  await desktop.evaluate(({ session }) => { session.fromPartition('persist:ollama-account').fetch = async () => ({ ok: false, status: 500 }); });
+  ollamaState = await page.evaluate(() => window.lasmium.syncOne('ollama'));
+  const ollamaTransient = ollamaState.providers.find(p => p.id === 'ollama');
+  assert.match(ollamaTransient.error, /HTTP 500/);
+  assert.equal(ollamaTransient.connected, true);
+  assert.deepEqual(ollamaTransient.accountSession, { kind: 'ollama-credits' });
+  assert.equal(ollamaTransient.snapshot.balances[0].remaining, 47.5);
   // Session invalide : la connexion est retirée mais le dernier relevé reste.
   await desktop.evaluate(({ session }) => { session.fromPartition('persist:ollama-account').fetch = async () => ({ ok: false, status: 302 }); });
   ollamaState = await page.evaluate(() => window.lasmium.syncOne('ollama'));
@@ -629,7 +528,7 @@ async function main() {
   }
   const exportedDocument = JSON.parse(exported);
   assert.equal(exportedDocument.version, packageJson.version);
-  assert.equal(exportedDocument.inventory.length, 10);
+  assert.equal(exportedDocument.inventory.length, 9);
   assert.equal(exportedDocument.history.length, historyCountBeforeExport);
   // L'ordre de consommation a été retiré : l'export ne contient plus `strategy`.
   assert.equal('strategy' in exportedDocument, false);
@@ -696,11 +595,11 @@ const fontBytes = await fs.readFile(fontFile);
     return quickWindow.getBounds();
   });
   assert.ok(Math.abs(quickBounds.width - 360) <= 4 && Math.abs(quickBounds.height - 660) <= 4, `taille de fenêtre inattendue : ${JSON.stringify(quickBounds)}`);
-  assert.equal(await quick.locator('.quick-row').count(), 10);
+  assert.equal(await quick.locator('.quick-row').count(), 9);
   // Ordre de l'inventaire : abonnements en tête, puis API (aucun classement).
-  assert.deepEqual(await quick.locator('.quick-row').evaluateAll(rows => rows.map(row => row.dataset.provider)), ['openai', 'claude', 'grok', 'antigravity', 'zai', 'ollama', 'openrouter', 'deepseek', 'runinfra', 'orcarouter']);
+  assert.deepEqual(await quick.locator('.quick-row').evaluateAll(rows => rows.map(row => row.dataset.provider)), ['openai', 'claude', 'grok', 'antigravity', 'zai', 'ollama', 'openrouter', 'deepseek', 'runinfra']);
   assert.deepEqual(await quick.locator('.quick-group-title').allTextContents(), ['Abonnements', 'API']);
-  assert.match(await quick.locator('.quick-count').innerText(), /10 comptes · 6 abonnements · 4 API/);
+  assert.match(await quick.locator('.quick-count').innerText(), /9 comptes · 6 abonnements · 3 API/);
   assert.match(await quick.locator('.quick-refresh-status').innerText(), /Actualisation désactivée/);
   // Aucune recommandation/ordre de consommation ni ancien classement dans le widget.
   assert.equal(await quick.locator('.quick-strategy, .quick-api, .quick-api-providers, [data-api-provider], .quick-columns').count(), 0);
@@ -725,13 +624,13 @@ const fontBytes = await fs.readFile(fontFile);
   const quickIcons = await quick.locator('.quick-provider .logo img').evaluateAll(images => images
     .filter(image => image.offsetParent !== null)
     .map(image => ({ width: image.getBoundingClientRect().width, height: image.getBoundingClientRect().height, loaded: image.complete && image.naturalWidth > 0 })));
-  assert.equal(quickIcons.length, 10);
+  assert.equal(quickIcons.length, 9);
   for (const providerIcon of quickIcons) {
     assert.ok(providerIcon.loaded, 'icône de fournisseur non chargée');
     assert.ok(providerIcon.width >= 14 && providerIcon.width <= 22, `icône non rendue à ~18 px : ${providerIcon.width}`);
     assert.ok(providerIcon.height >= 14 && providerIcon.height <= 22, `icône non rendue à ~18 px : ${providerIcon.height}`);
   }
-  // 10 lignes et toutes les informations visibles sans défilement à 360×660.
+  // 9 lignes et toutes les informations visibles sans défilement à 360×660.
   const quickFit = await quick.locator('.quick-list').evaluate(el => ({ scroll: el.scrollHeight, client: el.clientHeight }));
   assert.ok(quickFit.scroll <= quickFit.client + 1, `le widget défile à 360×660 : ${JSON.stringify(quickFit)}`);
   assert.ok(await quick.locator('.quick-footer').evaluate(el => el.getBoundingClientRect().bottom <= innerHeight), 'le pied du widget doit rester visible');
@@ -747,7 +646,7 @@ const fontBytes = await fs.readFile(fontFile);
   await quick.screenshot({ path: path.join(results, 'quick.png') });
   // Niveau toujours textuel, une information par fenêtre, aucun « +N ».
   const quickLevels = await quick.locator('.quick-level').allTextContents();
-  assert.equal(quickLevels.length, 10);
+  assert.equal(quickLevels.length, 9);
   for (const quickLevel of quickLevels) assert.match(quickLevel, /Épuisé|Critique|Bas|Suffisant|Indisponible/);
   // Chips T19 : classe .level-pill + .quick-level, texte visible et title explicite.
   const quickChips = await quick.locator('.quick-level').evaluateAll(chips => chips.map(chip => ({
@@ -852,9 +751,9 @@ const fontBytes = await fs.readFile(fontFile);
     renderQuick();
   });
   assert.equal(await quick.locator('[data-provider="zai"]').count(), 0);
-  assert.equal(await quick.locator('.quick-row').count(), 9);
+  assert.equal(await quick.locator('.quick-row').count(), 8);
   await quick.evaluate(() => { state = globalThis.widgetOriginalState; delete globalThis.widgetOriginalState; renderQuick(); });
-  assert.equal(await quick.locator('.quick-row').count(), 10);
+  assert.equal(await quick.locator('.quick-row').count(), 9);
   // Défilement fin uniquement en cas de dépassement : hauteur réduite 360×320.
   await desktop.evaluate(({ BrowserWindow }) => {
     const quickWindow = BrowserWindow.getAllWindows().find(w => w.webContents.getURL().includes('mode=quick'));
@@ -891,7 +790,7 @@ const fontBytes = await fs.readFile(fontFile);
     page = 'overview'; filter = 'all'; query = '';
     state = structuredClone(state);
     const stamp = new Date().toISOString();
-    for (const [id, remaining] of [['openrouter', 0], ['deepseek', 2], ['runinfra', 5], ['orcarouter', 10]]) {
+    for (const [id, remaining] of [['openrouter', 0], ['deepseek', 2], ['runinfra', 5]]) {
       const p = state.providers.find(p => p.id === id);
       Object.assign(p, { active: true, connected: true, error: null, snapshot: { source: 'api', updatedAt: stamp, balances: [{ currency: 'USD', remaining }], quotaRemaining: null } });
     }
@@ -916,7 +815,6 @@ const fontBytes = await fs.readFile(fontFile);
   assert.match(await quick.locator('[data-provider="openrouter"] .quick-level').innerText(), /Épuisé/);
   assert.match(await quick.locator('[data-provider="deepseek"] .quick-level').innerText(), /Critique/);
   assert.match(await quick.locator('[data-provider="runinfra"] .quick-level').innerText(), /Bas/);
-  assert.match(await quick.locator('[data-provider="orcarouter"] .quick-level').innerText(), /Suffisant/);
   assert.match(await quick.locator('[data-provider="ollama"] .quick-level').innerText(), /Épuisé/);
   const ollamaFacts = await quick.locator('[data-provider="ollama"] .quick-fact').evaluateAll(items => items.map(item => ({
     label: item.querySelector('.quick-fact-label')?.textContent || '',
@@ -946,7 +844,7 @@ const fontBytes = await fs.readFile(fontFile);
   assert.equal(openrouterNegativeColor, openrouterCardColor);
   // Aucun ancien hook de widget ni barre de jauge.
   assert.equal(await quick.locator('.quick-quota, .quick-period, .quick-period-status, .quick-resource-status, .quick-freshness, .meter').count(), 0);
-  for (const [id, level] of [['openrouter', 'empty'], ['deepseek', 'critical'], ['runinfra', 'low'], ['orcarouter', 'healthy']]) {
+  for (const [id, level] of [['openrouter', 'empty'], ['deepseek', 'critical'], ['runinfra', 'low']]) {
     assert.equal(await quick.locator(`[data-provider="${id}"].resource-${level}`).count(), 1);
     assert.equal(await page.locator(`.card.resource-${level}:has([data-open="${id}"])`).count(), 1);
   }
@@ -991,8 +889,6 @@ const fontBytes = await fs.readFile(fontFile);
   assert.equal(loaded.providers.find(p => p.id === 'ollama').connected, true);
   assert.equal(loaded.providers.find(p => p.id === 'ollama').snapshot.balances[0].remaining, 47.5);
   assert.equal(loaded.providers.find(p => p.id === 'ollama').snapshot.usageCredits.remaining, 2.98);
-  assert.equal(loaded.providers.find(p => p.id === 'orcarouter').connected, true);
-  assert.equal(loaded.providers.find(p => p.id === 'orcarouter').snapshot.balances[0].remaining, 53.2);
   await page.locator('[data-nav="settings"]').click();
   assert.equal(await page.locator('#app-version').innerText(), `Version ${packageJson.version}`);
   await page.locator('[data-nav="overview"]').click();
@@ -1270,7 +1166,7 @@ const fontBytes = await fs.readFile(fontFile);
   await page.locator('[data-action="erase-data"]').click();
   await page.waitForFunction(() => document.querySelector('#toast').textContent.includes('Données effacées'));
   const erased = await page.evaluate(() => window.lasmium.getState());
-  assert.equal(erased.providers.length, 10);
+  assert.equal(erased.providers.length, 9);
   assert.equal(erased.historyCount, 0);
   assert.equal(erased.providers.every(p => !p.connected), true);
   assert.equal(await page.evaluate(async () => (await window.lasmium.getHistory()).length), 0);
@@ -1280,10 +1176,10 @@ const fontBytes = await fs.readFile(fontFile);
     await assert.rejects(fs.access(path.join(dataDir, name)), { code: 'ENOENT' }, `${name} doit être supprimé`);
   }
   const erasedState = JSON.parse(await fs.readFile(path.join(dataDir, 'state.json'), 'utf8'));
-  assert.equal(Array.isArray(erasedState.providers) && erasedState.providers.length, 10);
+  assert.equal(Array.isArray(erasedState.providers) && erasedState.providers.length, 9);
   assert.deepEqual(erasedState.history, []);
   await desktop.close(); desktop = null;
-  console.log('PASS: marque Lasmium TOKENS-HUB, logo, thèmes clair/sombre/système, version dynamique, app:info, erase-data, recommandations retirées, inventaire 10 fournisseurs, recherche/filtres, fiche abonnement à quatre champs (mensuel/annuel/paiement unique, échéance à vérifier, fin et réactivation), suivi des dépenses API (recharge détectée, crédit offert), historique, clés chiffrées, course connect/disconnect, reprise transitoire, cooldown persistant, Orca/Ollama (session conservée puis auth invalide), Claude via Claude Code, lecteurs DOM réels, santé des connexions (10 lignes, états typés, dérive SCHEMA_DRIFT sans écraser le dernier relevé), packs signés (3) et sauvegarde d’état, polices Inter + Sora (fichiers+OFL+chargement dashboard/widget, tabular-nums), libellés Hebdo/Horaire/Hebdo Fable/Hebdo Argon et chips, widget vertical Lasmium 360×660 (10 lignes, une information par fenêtre, Ollama Free + crédits, soldes multi-devises, sans défilement ; scroll fin à 320), niveaux textuels, tray, redémarrage, Ollama Free, Antigravity, export nettoyé.');
+  console.log('PASS: marque Lasmium TOKENS-HUB, logo, thèmes clair/sombre/système, version dynamique, app:info, erase-data, recommandations retirées, inventaire 9 fournisseurs (OrcaRouter retiré), recherche/filtres, fiche abonnement à quatre champs (mensuel/annuel/paiement unique, échéance à vérifier, fin et réactivation), suivi des dépenses API (recharge détectée, crédit offert), historique, clés chiffrées, course connect/disconnect, reprise transitoire, cooldown persistant, Orca/Ollama (session conservée puis auth invalide), Claude via Claude Code, lecteurs DOM réels, santé des connexions (10 lignes, états typés, dérive SCHEMA_DRIFT sans écraser le dernier relevé), packs signés (3) et sauvegarde d’état, polices Inter + Sora (fichiers+OFL+chargement dashboard/widget, tabular-nums), libellés Hebdo/Horaire/Hebdo Fable/Hebdo Argon et chips, widget vertical Lasmium 360×660 (10 lignes, une information par fenêtre, Ollama Free + crédits, soldes multi-devises, sans défilement ; scroll fin à 320), niveaux textuels, tray, redémarrage, Ollama Free, Antigravity, export nettoyé.');
 }
 
 // Un smoke en échec se termine toujours : fermeture d'Electron bornée à 15 s,

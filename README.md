@@ -1,6 +1,8 @@
 # Lasmium TOKENS-HUB
 
-Application desktop Windows pour suivre les abonnements, quotas et crédits de **dix fournisseurs d’IA**. Un tableau de bord et un widget dans la zone de notification regroupent les abonnements et les API avec leurs ressources restantes et leurs dates de réinitialisation.
+Application desktop Windows pour suivre les abonnements, quotas et crédits de **neuf fournisseurs d’IA**. Un tableau de bord et un widget dans la zone de notification regroupent les abonnements et les API avec leurs ressources restantes et leurs dates de réinitialisation.
+
+**Version 0.6.17 — 17 novembre 2026 :** **retrait d'OrcaRouter** : le fournisseur n'est plus suivi (neuf fournisseurs) ; sa fiche, son historique, sa session et son profil Chrome sont effacés au premier démarrage, après une sauvegarde de l'état. Détails dans [CHANGELOG.md](CHANGELOG.md).
 
 **Version 0.6.16 — 14 novembre 2026 :** version **corrective** : Grok est de nouveau lu (limites SuperGrok et Grok Bot distinctes, affichées en texte depuis le 12 novembre). Détails dans [CHANGELOG.md](CHANGELOG.md).
 
@@ -25,6 +27,11 @@ Application desktop Windows pour suivre les abonnements, quotas et crédits de *
 **Version 0.6.6 — 5 novembre 2026 :** version **Qualité** : correction d'un timer orphelin du navigateur de connexion Ollama, URL de mise à jour vers le dépôt renommé, CI fusionnée et workflow de release automatisé, ESLint, 352 tests, renderer découpé. Toutes les fonctionnalités 0.6.5 sont conservées ; détails dans [CHANGELOG.md](CHANGELOG.md).
 
 **Version 0.6.5 — 4 novembre 2026 :** **mise à jour automatique signée** du portable, vérifiée par manifeste Ed25519 et SHA-256, avec remplacement après fermeture et conservation stricte de `data/` ; **canary live** prêt à recevoir des clés de test locales. Toutes les fonctionnalités 0.5.0 sont conservées. Détails dans [CHANGELOG.md](CHANGELOG.md), [updates.md](docs/updates.md), la [matrice fournisseurs](docs/provider-matrix.md) et le [runbook](docs/runbook-connectors.md).
+
+## Maintenance 0.6.17
+
+- **OrcaRouter retiré** : `orcarouter` ajouté à `removedProviderIds` (fiche, historique, `connectorHealth`, `apiCooldowns`), partition `persist:orcarouter-account` vidée et profil `account-browsers/orcarouter` supprimé au démarrage ; `lib/orca-account.cjs`, IPC `orca:*`, codes `ORCA_*` et stratégie `orca-session` supprimés.
+- **Qualité** : 365 tests, lint sans erreur, trois smoke tests Windows ; migration vérifiée sur l'application packagée avec une copie de l'état réel.
 
 ## Maintenance 0.6.16
 
@@ -117,8 +124,8 @@ Application desktop Windows pour suivre les abonnements, quotas et crédits de *
 
 - **Toutes les informations par ligne** : le widget n'agrège plus les fenêtres et n'affiche plus de compteur « +N ». Chaque abonnement est une ligne verticale (logo, nom, chip de niveau) suivie d'une ligne par information : Claude **Hebdo / Horaire / Hebdo Fable**, Antigravity **Gemini · Hebdo**, **Gemini · Horaire**, **Claude / GPT · Hebdo**, **Claude / GPT · Horaire**, **Hebdo Argon**.
 - **Ollama visible** : « Limite Free » (quota) et « Crédits achetés » (réserve en USD) sont désormais affichés, au lieu d'un simple « — ». Une information unique (OpenAI, Grok, API mono-solde) reste sur la ligne d'en-tête pour garder le widget compact.
-- **API complètes** : tous les soldes sont listés, devise par devise (DeepSeek USD + CNY, RunInfra, OrcaRouter, OpenRouter), avec la couleur de niveau et le détail en infobulle.
-- **Dimensions** : fenêtre **360 × 660**, lignes de 28 à 115 px selon le nombre de fenêtres, icônes 18 px, dix fournisseurs visibles **sans défilement** (barre fine de 5 px seulement si la fenêtre est réduite).
+- **API complètes** : tous les soldes sont listés, devise par devise (DeepSeek USD + CNY, RunInfra, OpenRouter), avec la couleur de niveau et le détail en infobulle.
+- **Dimensions** : fenêtre **360 × 660**, lignes de 28 à 115 px selon le nombre de fenêtres, icônes 18 px, tous les fournisseurs visibles **sans défilement** (barre fine de 5 px seulement si la fenêtre est réduite).
 
 ## Correctif 0.3.5
 
@@ -187,13 +194,12 @@ Les pourcentages indiquent les **quotas restants**. Une valeur absente reste inc
 | OpenRouter | Clé de gestion (Management key) | Crédits achetés, consommés et restants |
 | DeepSeek Platform | Clé API | Solde dans sa devise USD/CNY |
 | RunInfra | Clé d’espace de travail non restreinte | Solde, réservations et dépenses de période |
-| OrcaRouter | Session de compte et espace de travail | Portefeuille réel, distinct du plafond d’une clé API |
 
 Les connecteurs lisent les ressources ; ils ne lancent aucun modèle et n’achètent rien. Lire le solde d’une clé ne prouve pas ses droits d’inférence sur tous les modèles.
 
 ### Comportement des connexions
 
-- **Sessions conservées** : pour Ollama et OrcaRouter, la session est enregistrée dès qu’elle est validée, **avant** la première lecture. Un 429 ou une panne transitoire conserve la connexion et le dernier relevé, affiche l’erreur et laisse le cycle de 5 minutes réessayer. Seule une authentification refusée (`OLLAMA_SIGNIN`, `ORCA_AUTH`) efface la session et redemande une connexion.
+- **Sessions conservées** : pour Ollama, la session est enregistrée dès qu’elle est validée, **avant** la première lecture. Un 429 ou une panne transitoire conserve la connexion et le dernier relevé, affiche l’erreur et laisse le cycle de 5 minutes réessayer. Seule une authentification refusée (`OLLAMA_SIGNIN`) efface la session et redemande une connexion.
 - **Cooldowns 429** : lorsqu’une clé API (OpenRouter, DeepSeek, RunInfra) reçoit un 429, l’échéance est mémorisée dans l’état public (`state.apiCooldowns`, 100 entrées maximum) et respectée après redémarrage. L’erreur reste `API_RATE_LIMIT` avec l’heure de reprise.
 - **Proxy Windows** : les appels API et la lecture directe Claude passent par `session.defaultSession.fetch`, donc par la configuration réseau et proxy de Windows (comme les fenêtres de l’application).
 - **Lectures bornées** : GET uniquement, redirections refusées, délai de 20 s, une seule reprise sur erreur réseau ou 502/503/504, `Retry-After` respecté et plafonné. Aucune estimation n’est inventée quand un format change : le dernier relevé est conservé avec un message.
@@ -262,7 +268,7 @@ Pour une **API**, la fiche ne garde que la clé (onglet Connexion) et le **suivi
 - **Dossier de données** : à chaque démarrage, son héritage ACL est retiré et seuls l’utilisateur courant et `SYSTEM` y ont accès (`icacls`). Un échec produit un avertissement, jamais un blocage.
 - **Sessions web** : chaque fournisseur utilise un profil ou une partition isolés. Les navigateurs de connexion sont pilotés par un **pipe local** (`--remote-debugging-pipe`) ; aucun port TCP de débogage n’est ouvert par les lecteurs de comptes. Un port local n’existe qu’en **mode diagnostic explicite** (`--remote-debugging-port`), utilisé par `npm run verify:connections` et `npm run update:portable`.
 - **Purge au démarrage** : fichiers `.tmp` interrompus, port de diagnostic obsolète (sauf en mode diagnostic), sauvegardes de migration au-delà des deux plus récentes, profils de navigateur temporaires orphelins.
-- **Historique** : plafonné à **20 000 relevés** (≈ 7 jours à dix fournisseurs avec l’actualisation de 5 minutes) ; les plus anciens sont purgés.
+- **Historique** : plafonné à **20 000 relevés** (≈ 7 jours à neuf fournisseurs avec l’actualisation de 5 minutes) ; les plus anciens sont purgés.
 - **Export** : document JSON autonome `{ app, version, exportedAt, inventory, settings, manualResets, history }`, **sans** session, sans identité et sans empreinte de clé. La restauration depuis l’export n’est pas proposée.
 - **Effacer mes données** (Réglages, double confirmation) : supprime `state.json`, `credentials.json`, les profils de navigateur, les sauvegardes et les caches, puis réinitialise l’inventaire. Refusé pendant une synchronisation.
 - **Télémétrie** : aucune. Lasmium TOKENS-HUB n’envoie aucune donnée d’usage à un serveur Lasmium TOKENS-HUB.
@@ -336,7 +342,7 @@ L’exécutable et l’installeur **ne sont pas signés** (aucun certificat Auth
 
 ## Limites connues
 
-- **Lectures réelles** : le service local Antigravity, le portail Ollama, le portefeuille OrcaRouter et le solde OpenRouter sont vérifiés sur une machine réelle (voir [docs/validation-0.3.4.md](docs/validation-0.3.4.md)). Les lectures authentifiées des fournisseurs (clés API, sessions web) restent à rejouer après chaque changement de service.
+- **Lectures réelles** : le service local Antigravity, le portail Ollama et le solde OpenRouter sont vérifiés sur une machine réelle (voir [docs/validation-0.3.4.md](docs/validation-0.3.4.md)). Les lectures authentifiées des fournisseurs (clés API, sessions web) restent à rejouer après chaque changement de service.
 - Les lecteurs web (Grok, Z.ai, Ollama, bases Antigravity) dépendent des pages et services officiels, qui peuvent changer sans préavis. Un format inconnu produit une erreur, jamais une estimation.
 - Claude exige Claude Code installé et connecté à un abonnement Claude ; Anthropic peut limiter temporairement la lecture ou le renouvellement (dernières valeurs affichées).
 - L’export JSON n’est pas restaurable depuis l’interface ; la connexion des comptes et des clés doit être refaite.

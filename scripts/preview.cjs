@@ -5,7 +5,7 @@ const {createSeed}=require('../lib/seed.cjs');
 const {summary}=require('../lib/domain.cjs');
 const {connectionInfo}=require('../lib/provider-catalog.cjs');
 const providerAssets=require('../assets/providers/sources.json');
-const providerExtensions={claude:'ico',antigravity:'ico',deepseek:'ico',ollama:'png',openrouter:'png',orcarouter:'png'};
+const providerExtensions={claude:'ico',antigravity:'ico',deepseek:'ico',ollama:'png',openrouter:'png'};
 const routes={'/':'renderer/index.html','/app.js':'renderer/app.js','/styles.css':'renderer/styles.css','/theme.css':'renderer/theme.css','/theme-init.js':'renderer/theme-init.js','/assets/icon.png':'assets/icon.png'};
 routes['/lib/resource-levels.js']='lib/resource-levels.js';
 // La fonctionnalité de recommandation de modèle a été retirée en 0.3.4 :
