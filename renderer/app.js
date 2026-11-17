@@ -252,6 +252,7 @@ async function runAction(action, button) {
   }
   if (action === 'claude-enable-live') {
     button.disabled = true;
+    holdConnectionToast('claude');
     try {
       state = await api.enableClaudeLive();
       render();
@@ -261,12 +262,14 @@ async function runAction(action, button) {
       await showClaudeFailure(error);
     } finally {
       button.disabled = false;
+      releaseConnectionToast('claude');
     }
     return;
   }
   if (['account-open', 'account-verify'].includes(action)) {
     const id = dialogId;
     button.disabled = true;
+    holdConnectionToast(id);
     try {
       if (action === 'account-open') {
         await api.openAccount(id);
@@ -291,6 +294,7 @@ async function runAction(action, button) {
       if (node) node.textContent = message; else toast(message);
     } finally {
       button.disabled = false;
+      releaseConnectionToast(id);
     }
     return;
   }
@@ -578,6 +582,15 @@ document.getElementById('detail-dialog').addEventListener('close', () => { dialo
 /* ------------------------------------------------------------------ *
  * Réception d'état
  * ------------------------------------------------------------------ */
+// Une action de connexion lancée depuis la fiche affiche son propre message.
+// La réponse de l'action et la diffusion d'état n'arrivent pas toujours dans
+// le même ordre : pendant l'action, puis 3 s après, la notification « connecté »
+// issue de la diffusion ne doit pas remplacer ce message.
+const connectionToastHeld = new Map();
+function holdConnectionToast(id) { if (id) connectionToastHeld.set(id, Infinity); }
+function releaseConnectionToast(id) { if (id) connectionToastHeld.set(id, Date.now() + 3000); }
+function connectionToastIsHeld(id) { return (connectionToastHeld.get(id) || 0) > Date.now(); }
+
 function receiveState(data) {
   if (!state) { state = data; render(); return; }
   const changedAccounts = data.providers
@@ -616,6 +629,7 @@ function receiveState(data) {
     renderDialog();
   }
   for (const provider of justConnected) {
+    if (connectionToastIsHeld(provider.id)) continue;
     toast(provider.error || (provider.id === 'claude'
       ? 'Relevé Claude récupéré.' : `${provider.name} connecté. Les usages sont à jour.`));
   }

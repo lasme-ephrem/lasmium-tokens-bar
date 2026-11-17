@@ -1,5 +1,19 @@
 # Historique des versions
 
+## 0.6.18 — 18 novembre 2026
+
+Version **corrective** : le bon message après « Connecter Claude ». Toutes les
+fonctionnalités 0.6.17 sont conservées.
+
+### Corrections
+
+- Connexion Claude : selon l'ordre d'arrivée de la réponse de l'action et de la
+  mise à jour d'état, la notification « Claude connecté à ton abonnement » était
+  parfois remplacée par « Relevé Claude récupéré. ». Pendant une action de
+  connexion lancée depuis la fiche (et 3 s après), seul le message de l'action
+  est affiché ; les connexions détectées en arrière-plan gardent leur
+  notification. Le smoke Claude, instable (1 réussite sur 3), passe 8 fois sur 8.
+
 ## 0.6.17 — 17 novembre 2026
 
 Version de **retrait** : OrcaRouter n'est plus suivi. Toutes les autres

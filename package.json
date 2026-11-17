@@ -1,6 +1,6 @@
 {
   "name": "lasmium-tokens-hub",
-  "version": "0.6.17",
+  "version": "0.6.18",
   "private": true,
   "description": "Lasmium TOKENS-HUB — suivi local des abonnements, quotas et crédits IA pour Windows",
   "main": "main.cjs",
