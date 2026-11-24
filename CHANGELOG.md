@@ -1,5 +1,19 @@
 # Historique des versions
 
+## 0.6.21 — 24 novembre 2026
+
+Version **corrective** : la ligne du bas des cartes API. Toutes les
+fonctionnalités 0.6.20 sont conservées.
+
+### Corrections
+
+- Cartes API (OpenRouter, DeepSeek, RightNow) : la ligne « Quota restant »
+  affichait le solde en dollars comme un pourcentage (« 2.3534163850000027 % »,
+  « 5.97 % ») avec une jauge assortie. Elle indique désormais la part restante
+  d'un crédit total connu (« Reste sur 55,00 $US · 4,3 % », arrondie, avec sa
+  jauge), sinon « Solde du compte » et le montant, sans pourcentage ni jauge.
+  Les quotas des abonnements ne changent pas.
+
 ## 0.6.20 — 24 novembre 2026
 
 Version **corrective** : plus de fenêtre PowerShell après une mise à jour.

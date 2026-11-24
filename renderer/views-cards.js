@@ -392,15 +392,30 @@ function card(provider) {
   let note;
   let unit = '%';
   let rawValue = null;
+  // Pourcentage réellement restant pour la ligne et la jauge du bas : quota
+  // d'abonnement, ou part restante d'un crédit total connu. Un solde en devise
+  // n'est jamais affiché comme un pourcentage.
+  let percentLeft = null;
+  let footLabel = null;
+  let footValue = null;
   if (snapshot?.balances?.length) {
     label = escapeHtml(snapshot.balanceLabel || 'Dernier solde connu');
     metric = snapshot.balances.map(resourceAmount).join('<small class="separator"> / </small>');
     note = age(snapshot.updatedAt);
     unit = snapshot.balances[0].currency;
     rawValue = snapshot.balances[0].remaining;
+    const first = snapshot.balances[0];
+    if (typeof first.total === 'number' && first.total > 0 && Number.isFinite(first.remaining)) {
+      percentLeft = Math.min(100, Math.max(0, Math.round(first.remaining / first.total * 1000) / 10));
+      footLabel = `Reste sur ${money(first.total, first.currency)}`;
+    } else {
+      footLabel = 'Solde du compte';
+      footValue = money(first.remaining, first.currency);
+    }
   } else if (snapshot?.quotaRemaining !== null && snapshot?.quotaRemaining !== undefined) {
     label = escapeHtml(snapshot.quotaLabel || 'Quota restant');
     rawValue = snapshot.quotaRemaining;
+    percentLeft = rawValue;
     metric = `<span class="resource-value resource-${ResourceLevels.level(rawValue, '%')}">`
       + `${quotaDisplay(rawValue, provider.id)}<small>%</small></span>`;
     note = age(snapshot.updatedAt);
@@ -441,11 +456,12 @@ function card(provider) {
     + `<div class="metric-row"><p class="metric">${metric}</p>${metricPill}</div>`
     + `<p class="metric-note">${escapeHtml(note)}</p>`
     + `<div class="quota${hasQuota ? ' resource-' + ResourceLevels.level(rawValue, unit) : ''}">`
-    + `<div class="quota-label"><span>${hasQuota ? 'Quota restant'
+    + `<div class="quota-label"><span>${footLabel || (hasQuota ? 'Quota restant'
       : ollamaFree(provider) ? 'Limite Free à vérifier'
-        : provider.type === 'subscription' ? 'Usage non renseigné' : 'Solde du compte'}</span>`
-    + `<strong>${hasQuota ? quotaDisplay(rawValue, provider.id) + ' %' : '—'}</strong></div>`
-    + `${meterMarkup(hasQuota ? rawValue : undefined, 'Quota restant')}</div>`;
+        : provider.type === 'subscription' ? 'Usage non renseigné' : 'Solde du compte')}</span>`
+    + `<strong>${footValue || (percentLeft !== null
+      ? `${quotaDisplay(percentLeft, provider.id).toLocaleString('fr-FR', { maximumFractionDigits: 1 })} %` : '—')}</strong></div>`
+    + `${meterMarkup(percentLeft ?? undefined, footLabel || 'Quota restant')}</div>`;
   return `<article class="card resource-${levelName}${unverified ? ' is-stale' : ''}`
     + `${ollamaFree(provider) && !hasQuota ? ' ollama-free-unknown' : ''}">`
     + `<button type="button" class="card-open" data-open="${escapeHtml(provider.id)}"`

@@ -2,6 +2,8 @@
 
 Application desktop Windows pour suivre les abonnements, quotas et crédits de **neuf fournisseurs d’IA**. Un tableau de bord et un widget dans la zone de notification regroupent les abonnements et les API avec leurs ressources restantes et leurs dates de réinitialisation.
 
+**Version 0.6.21 — 24 novembre 2026 :** version **corrective** : les cartes API n'affichent plus le solde en dollars comme un pourcentage. Détails dans [CHANGELOG.md](CHANGELOG.md).
+
 **Version 0.6.20 — 24 novembre 2026 :** version **corrective** : plus de fenêtre PowerShell après une mise à jour, et Lasmium ne s'arrête plus si une console est fermée. Détails dans [CHANGELOG.md](CHANGELOG.md).
 
 **Version 0.6.19 — 24 novembre 2026 :** version **corrective** : Antigravity 2.34 est de nouveau lu (jeton du service local lu dans son fichier de découverte) ; **RunInfra devient RightNow** (nom, logo officiel, adresse `api.rightnowai.co`, même clé et même historique). Détails dans [CHANGELOG.md](CHANGELOG.md).
@@ -33,6 +35,11 @@ Application desktop Windows pour suivre les abonnements, quotas et crédits de *
 **Version 0.6.6 — 5 novembre 2026 :** version **Qualité** : correction d'un timer orphelin du navigateur de connexion Ollama, URL de mise à jour vers le dépôt renommé, CI fusionnée et workflow de release automatisé, ESLint, 352 tests, renderer découpé. Toutes les fonctionnalités 0.6.5 sont conservées ; détails dans [CHANGELOG.md](CHANGELOG.md).
 
 **Version 0.6.5 — 4 novembre 2026 :** **mise à jour automatique signée** du portable, vérifiée par manifeste Ed25519 et SHA-256, avec remplacement après fermeture et conservation stricte de `data/` ; **canary live** prêt à recevoir des clés de test locales. Toutes les fonctionnalités 0.5.0 sont conservées. Détails dans [CHANGELOG.md](CHANGELOG.md), [updates.md](docs/updates.md), la [matrice fournisseurs](docs/provider-matrix.md) et le [runbook](docs/runbook-connectors.md).
+
+## Maintenance 0.6.21
+
+- **Cartes API** : `card()` (`renderer/views-cards.js`) calcule `percentLeft` (quota, ou `remaining / total` arrondi au dixième) ; sans total, « Solde du compte » et le montant, sans jauge. Assertions ajoutées au smoke `test:resources:desktop`.
+- **Qualité** : 369 tests, lint sans erreur, trois smoke tests Windows ; cartes vérifiées sur l'application packagée avec une copie de l'état réel.
 
 ## Maintenance 0.6.20
 

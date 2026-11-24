@@ -55,6 +55,15 @@ async function main() {
       }
     }
   }
+  // Ligne du bas des cartes API : jamais un montant affiché comme un pourcentage.
+  await fixture('deepseek', { balances: [{ currency: 'USD', remaining: 2.09 }], quotaRemaining: null });
+  assert.equal(await card('deepseek').locator('.quota-label span').innerText(), 'Solde du compte');
+  assert.doesNotMatch(await card('deepseek').locator('.quota-label strong').innerText(), /%/);
+  assert.equal(await card('deepseek').locator('.quota .meter').count(), 0, 'aucune jauge sans total connu');
+  await fixture('openrouter', { balances: [{ currency: 'USD', remaining: 2.3534163850000027, total: 55, used: 52.646583615 }], quotaRemaining: null });
+  assert.match(await card('openrouter').locator('.quota-label span').innerText(), /^Reste sur 55/);
+  assert.equal(await card('openrouter').locator('.quota-label strong').innerText(), '4,3 %');
+  assert.equal(await card('openrouter').locator('.quota .meter').getAttribute('aria-valuenow'), '4.3');
   const windowSets = {
     claude: [['Semaine', 'Limite hebdo atteinte'], ['Fable · Semaine', 'Limite hebdo Fable atteinte'], ['5 heures', 'Limite horaire atteinte']],
     zai: [['Semaine', 'Limite hebdo atteinte'], ['5 heures', 'Limite horaire atteinte']],
