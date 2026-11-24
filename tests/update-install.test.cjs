@@ -62,6 +62,8 @@ test('le script PowerShell échappe les chemins et refuse une cible incluse dans
   assert.match(script, /stage-l''été/);
   assert.match(script, /Copy-Item/);
   assert.match(script, /Start-Process/);
+  // Relance sans rattachement à une console, y compris en cas de retour arrière.
+  assert.equal((script.match(/\$env:ELECTRON_NO_ATTACH_CONSOLE = '1'\r?\n\s*(?:if \(Test-Path -LiteralPath \$exePath\) \{ )?Start-Process/g) || []).length, 2);
   // PowerShell traite les guillemets typographiques comme des délimiteurs de chaîne.
   assert.doesNotMatch(script, /[\u2018\u2019\u201C\u201D]/);
   assert.throws(() => buildWindowsInstallScript({

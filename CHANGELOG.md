@@ -1,5 +1,24 @@
 # Historique des versions
 
+## 0.6.20 — 24 novembre 2026
+
+Version **corrective** : plus de fenêtre PowerShell après une mise à jour.
+Toutes les fonctionnalités 0.6.19 sont conservées.
+
+### Corrections
+
+- Mise à jour automatique : le script d'installation s'ouvrait dans une fenêtre
+  de console (Windows Terminal) qui restait affichée après le redémarrage, et
+  la fermer arrêtait Lasmium, rattachée à cette console. Le script est
+  désormais lancé directement, détaché et sans console (aucune fenêtre) ; le
+  shell natif, fenêtre masquée, reste un recours si ce lancement ne démarre
+  pas. Lasmium est relancée avec `ELECTRON_NO_ATTACH_CONSOLE=1` : elle ne se
+  rattache plus à aucune console, même en cas de retour à la version précédente.
+- La correction s'applique aux mises à jour lancées **depuis** la 0.6.20 : le
+  passage de la 0.6.19 à la 0.6.20 utilise encore l'ancien lanceur. Si la
+  fenêtre apparaît une dernière fois, la fermer arrête Lasmium : il suffit de
+  la rouvrir.
+
 ## 0.6.19 — 24 novembre 2026
 
 Version **corrective** : Antigravity est de nouveau lu et RunInfra devient

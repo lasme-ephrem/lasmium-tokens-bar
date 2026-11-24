@@ -453,7 +453,7 @@ test('install() écrit le script, attend l’accusé de démarrage puis quitte l
     // Le script réel écrit `<script>.started` dès son démarrage : on simule
     // cet accusé, après avoir vérifié qu'un accusé périmé a été purgé.
     spawnBehaviour: call => {
-      const script = /-File "([^"]+)"/.exec(call.command)[1];
+      const script = call.args.at(-1);
       call.staleAcknowledgement = fs.existsSync(`${script}.started`);
       fs.writeFileSync(`${script}.started`, '2026-11-05T12:00:00.000Z');
     },
@@ -468,9 +468,10 @@ test('install() écrit le script, attend l’accusé de démarrage puis quitte l
   assert.equal(spawned.length, 1);
   const [call] = spawned;
   assert.equal(call.staleAcknowledgement, false);
-  assert.equal(call.command, `powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "${installScript}"`);
-  assert.deepEqual(call.args, []);
-  assert.deepEqual(call.options, { shell: true, detached: true, stdio: 'ignore', windowsHide: true, cwd: path.dirname(installScript) });
+  // Lancement direct et détaché : aucune console, donc aucune fenêtre.
+  assert.equal(call.command, 'powershell.exe');
+  assert.deepEqual(call.args, ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-WindowStyle', 'Hidden', '-File', installScript]);
+  assert.deepEqual(call.options, { detached: true, stdio: 'ignore', windowsHide: true, cwd: path.dirname(installScript) });
   assert.equal(call.unrefed, true);
   assert.equal(call.killed, false);
   const script = fs.readFileSync(installScript, 'utf8');
@@ -487,6 +488,31 @@ test('install() écrit le script, attend l’accusé de démarrage puis quitte l
   assert.equal(spawned.length, 1);
   assert.equal(fs.existsSync(path.join(dir, 'target')), false);
   assert.deepEqual(states, ['checking', 'available', 'downloading', 'extracting', 'ready', 'installing']);
+});
+
+test('install() se rabat sur le shell natif, fenêtre masquée, si le lancement direct ne démarre pas', async t => {
+  let quitCalls = 0;
+  const { controller, spawned, installScript } = portable(t, {
+    quit: () => { quitCalls++; },
+    // Seul le recours par le shell écrit l'accusé.
+    spawnBehaviour: call => { if (call.options.shell) fs.writeFileSync(`${installScript}.started`, 'ok'); },
+  });
+  await controller.check();
+  await controller.prepare();
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const pending = controller.install();
+  let settled = false;
+  pending.then(() => { settled = true; }, () => { settled = true; });
+  while (!settled) { await flushIo(); t.mock.timers.tick(100); }
+  const result = await pending;
+  assert.equal(result.state, 'installing', result.error);
+  assert.equal(spawned.length, 2);
+  assert.equal(spawned[0].killed, true, 'le lancement direct sans accusé est arrêté');
+  assert.equal(spawned[1].command, `powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -WindowStyle Hidden -File "${installScript}"`);
+  assert.deepEqual(spawned[1].options, { shell: true, detached: true, stdio: 'ignore', windowsHide: true, cwd: path.dirname(installScript) });
+  assert.equal(spawned[1].killed, false);
+  t.mock.timers.runAll();
+  assert.equal(quitCalls, 1);
 });
 
 test('install() signale un script qui ne démarre pas et tue le processus lancé', async t => {
@@ -507,8 +533,8 @@ test('install() signale un script qui ne démarre pas et tue le processus lancé
   const result = await pending;
   assert.equal(result.state, 'error');
   assert.match(result.error, /n’a pas démarré/);
-  assert.equal(spawned.length, 1);
-  assert.equal(spawned[0].killed, true);
+  assert.equal(spawned.length, 2, 'lancement direct puis recours par le shell');
+  assert.ok(spawned.every(call => call.killed), 'aucun processus sans accusé ne reste lancé');
   assert.equal(fs.existsSync(`${installScript}.started`), false);
   assert.ok(fs.existsSync(installScript));
   t.mock.timers.runAll();
