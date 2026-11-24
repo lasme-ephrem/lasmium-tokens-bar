@@ -388,10 +388,10 @@ async function main() {
   assert.ok((await page.locator('.data-table').innerText()).includes('94,50'));
   await page.screenshot({ path: path.join(results, 'history.png'), fullPage: true });
   await page.locator('[data-nav="connections"]').first().click();
-  // Second connecteur API : RunInfra (clé d'espace de travail).
+  // Second connecteur API : RightNow, ex-RunInfra (clé d'espace de travail).
   await desktop.evaluate(() => {
     process.mainModule.require('electron').session.defaultSession.fetch = async url => {
-      if (url === 'https://api.runinfra.ai/v1/credits') return { ok: true, json: async () => ({ object: 'credits', currency: 'usd', balance_cents: 5476, available_cents: 5476, held_cents: 34, period: { spent_cents: 1500 } }) };
+      if (url === 'https://api.rightnowai.co/v1/credits') return { ok: true, json: async () => ({ object: 'credits', currency: 'usd', balance_cents: 5476, available_cents: 5476, held_cents: 34, period: { spent_cents: 1500 } }) };
       throw new Error('Unexpected endpoint');
     };
   });

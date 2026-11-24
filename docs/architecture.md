@@ -65,7 +65,7 @@ Tous les canaux passent par une garde unique : la frame émettrice doit être la
 
 | Module dans lib/ | Responsabilité |
 | --- | --- |
-| connectors.cjs | API de crédits OpenRouter, DeepSeek et RunInfra ; store de cooldowns injectable, reprises bornées |
+| connectors.cjs | API de crédits OpenRouter, DeepSeek et RightNow (ex-RunInfra, identifiant `runinfra`) ; store de cooldowns injectable, reprises bornées |
 | openai-account.cjs | codex app-server : compte, limites, connexion officielle |
 | antigravity-account.cjs | Service local vérifié, méthode RetrieveUserQuotaSummary |
 | subscription-accounts.cjs | Lecture ciblée des quotas Grok et Z.ai |

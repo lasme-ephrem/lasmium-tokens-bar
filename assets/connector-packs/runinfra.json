@@ -1,12 +1,12 @@
 {
   "schemaVersion": 1,
   "provider": "runinfra",
-  "version": "2026.11.1",
+  "version": "2026.11.2",
   "minApp": "0.4.0",
   "parserVersion": "runinfra-api-v1",
   "strategies": [
     "api-key"
   ],
-  "endpoint": "https://api.runinfra.ai/v1/credits",
-  "signature": "paD9Eje8PpzlFeECoVBgAIeJNnBz0dYv2V8EMv7E0TUBM0eYiEKlDtVTB/GyaF3/44gZk/UxgY1FxsdqSgNJCg=="
+  "endpoint": "https://api.rightnowai.co/v1/credits",
+  "signature": "UMEQyTM5JYK+pL47soxJBi/ObPTooU7xRA1BMrGR1mVFVXL9JzI7fHtPV/cy511C+7NstvC2LBUnfsdc4VBNDA=="
 }

@@ -2,8 +2,8 @@
 
 ## 0.6.19 — 24 novembre 2026
 
-Version **corrective** : Antigravity est de nouveau lu. Toutes les
-fonctionnalités 0.6.18 sont conservées.
+Version **corrective** : Antigravity est de nouveau lu et RunInfra devient
+RightNow. Toutes les fonctionnalités 0.6.18 sont conservées.
 
 ### Corrections
 
@@ -15,6 +15,17 @@ fonctionnalités 0.6.18 sont conservées.
   processus est le service Antigravity vérifié ; les fichiers d'anciennes
   sessions sont ignorés. La requête part d'abord vers le port HTTPS de ce
   service, toujours en local. Les versions antérieures restent prises en charge.
+
+### RunInfra devient RightNow
+
+- RunInfra fait désormais partie de **RightNow** (RightNow AI) : « RunInfra » est
+  l'ancien nom de la plateforme. La fiche s'appelle **RightNow**, avec le logo
+  officiel de la page de marque, et le solde est lu sur l'adresse documentée
+  `https://api.rightnowai.co/v1/credits` (même format en centimes USD), via un
+  pack de connecteur signé mis à jour.
+- Les données existantes sont conservées : clé enregistrée, solde, historique,
+  suivi des dépenses. Seuls le nom, le monogramme et la couleur sont mis à jour
+  au démarrage. Une clé RunInfra existante reste valable.
 
 ## 0.6.18 — 18 novembre 2026
 

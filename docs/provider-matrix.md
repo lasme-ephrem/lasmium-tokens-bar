@@ -15,7 +15,7 @@ lors de la dernière tentative.
 | Ollama | Compte navigateur | `ollama-browser` | auth, down, drift | — |
 | OpenRouter | Clé API | `api-key` | auth, rate, réseau, drift | oui |
 | DeepSeek | Clé API | `api-key` | auth, rate, réseau, drift | oui |
-| RunInfra | Clé API | `api-key` | auth, rate, réseau, drift | oui |
+| RightNow (ex-RunInfra) | Clé API | `api-key` | auth, rate, réseau, drift | oui |
 
 ## Codes d'erreur
 

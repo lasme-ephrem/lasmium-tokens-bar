@@ -2,7 +2,7 @@
 
 Application desktop Windows pour suivre les abonnements, quotas et crédits de **neuf fournisseurs d’IA**. Un tableau de bord et un widget dans la zone de notification regroupent les abonnements et les API avec leurs ressources restantes et leurs dates de réinitialisation.
 
-**Version 0.6.19 — 24 novembre 2026 :** version **corrective** : Antigravity 2.34 est de nouveau lu (jeton du service local lu dans son fichier de découverte). Détails dans [CHANGELOG.md](CHANGELOG.md).
+**Version 0.6.19 — 24 novembre 2026 :** version **corrective** : Antigravity 2.34 est de nouveau lu (jeton du service local lu dans son fichier de découverte) ; **RunInfra devient RightNow** (nom, logo officiel, adresse `api.rightnowai.co`, même clé et même historique). Détails dans [CHANGELOG.md](CHANGELOG.md).
 
 **Version 0.6.18 — 18 novembre 2026 :** version **corrective** : après « Connecter Claude », le message de connexion n'est plus remplacé par « Relevé Claude récupéré. ». Détails dans [CHANGELOG.md](CHANGELOG.md).
 
@@ -35,7 +35,8 @@ Application desktop Windows pour suivre les abonnements, quotas et crédits de *
 ## Maintenance 0.6.19
 
 - **Antigravity** : `discoverServers` lit le jeton CSRF dans `~/.gemini/antigravity/daemon/hub_<port>.json` quand `--csrf_token` est absent (2.34+), en filtrant par `pid` du `language_server.exe` vérifié ; port `httpsPort` en premier, `httpPort` exclu.
-- **Qualité** : 367 tests, lint sans erreur, trois smoke tests Windows ; connexion vérifiée sur l'application packagée avec Antigravity 2.34 réel.
+- **RightNow (ex-RunInfra)** : identifiant interne `runinfra` conservé ; nom, monogramme et couleur migrés par `normalizeProviderPresentation` ; endpoint `https://api.rightnowai.co/v1/credits` (pack signé 2026.11.2) ; logo officiel `assets/providers/rightnow.svg` (avatar sombre de la page de marque).
+- **Qualité** : 368 tests, lint sans erreur, trois smoke tests Windows ; Antigravity 2.34 réel et solde RightNow réel vérifiés sur l'application packagée.
 
 ## Maintenance 0.6.18
 
@@ -138,7 +139,7 @@ Application desktop Windows pour suivre les abonnements, quotas et crédits de *
 
 - **Toutes les informations par ligne** : le widget n'agrège plus les fenêtres et n'affiche plus de compteur « +N ». Chaque abonnement est une ligne verticale (logo, nom, chip de niveau) suivie d'une ligne par information : Claude **Hebdo / Horaire / Hebdo Fable**, Antigravity **Gemini · Hebdo**, **Gemini · Horaire**, **Claude / GPT · Hebdo**, **Claude / GPT · Horaire**, **Hebdo Argon**.
 - **Ollama visible** : « Limite Free » (quota) et « Crédits achetés » (réserve en USD) sont désormais affichés, au lieu d'un simple « — ». Une information unique (OpenAI, Grok, API mono-solde) reste sur la ligne d'en-tête pour garder le widget compact.
-- **API complètes** : tous les soldes sont listés, devise par devise (DeepSeek USD + CNY, RunInfra, OpenRouter), avec la couleur de niveau et le détail en infobulle.
+- **API complètes** : tous les soldes sont listés, devise par devise (DeepSeek USD + CNY, RightNow, OpenRouter), avec la couleur de niveau et le détail en infobulle.
 - **Dimensions** : fenêtre **360 × 660**, lignes de 28 à 115 px selon le nombre de fenêtres, icônes 18 px, tous les fournisseurs visibles **sans défilement** (barre fine de 5 px seulement si la fenêtre est réduite).
 
 ## Correctif 0.3.5
@@ -207,14 +208,14 @@ Les pourcentages indiquent les **quotas restants**. Une valeur absente reste inc
 | Ollama | Compte connecté | Crédits mensuels inclus et réserve de crédits supplémentaires |
 | OpenRouter | Clé de gestion (Management key) | Crédits achetés, consommés et restants |
 | DeepSeek Platform | Clé API | Solde dans sa devise USD/CNY |
-| RunInfra | Clé d’espace de travail non restreinte | Solde, réservations et dépenses de période |
+| RightNow (ex-RunInfra) | Clé d’espace de travail non restreinte (une clé RunInfra reste valable) | Solde, réservations et dépenses de période |
 
 Les connecteurs lisent les ressources ; ils ne lancent aucun modèle et n’achètent rien. Lire le solde d’une clé ne prouve pas ses droits d’inférence sur tous les modèles.
 
 ### Comportement des connexions
 
 - **Sessions conservées** : pour Ollama, la session est enregistrée dès qu’elle est validée, **avant** la première lecture. Un 429 ou une panne transitoire conserve la connexion et le dernier relevé, affiche l’erreur et laisse le cycle de 5 minutes réessayer. Seule une authentification refusée (`OLLAMA_SIGNIN`) efface la session et redemande une connexion.
-- **Cooldowns 429** : lorsqu’une clé API (OpenRouter, DeepSeek, RunInfra) reçoit un 429, l’échéance est mémorisée dans l’état public (`state.apiCooldowns`, 100 entrées maximum) et respectée après redémarrage. L’erreur reste `API_RATE_LIMIT` avec l’heure de reprise.
+- **Cooldowns 429** : lorsqu’une clé API (OpenRouter, DeepSeek, RightNow) reçoit un 429, l’échéance est mémorisée dans l’état public (`state.apiCooldowns`, 100 entrées maximum) et respectée après redémarrage. L’erreur reste `API_RATE_LIMIT` avec l’heure de reprise.
 - **Proxy Windows** : les appels API et la lecture directe Claude passent par `session.defaultSession.fetch`, donc par la configuration réseau et proxy de Windows (comme les fenêtres de l’application).
 - **Lectures bornées** : GET uniquement, redirections refusées, délai de 20 s, une seule reprise sur erreur réseau ou 502/503/504, `Retry-After` respecté et plafonné. Aucune estimation n’est inventée quand un format change : le dernier relevé est conservé avec un message.
 - **Diagnostic** : `npm run doctor` liste 17 contrôles. Deux seulement sont bloquants (dossier de données et chiffrement DPAPI) ; les autres sont des avertissements actionnables.

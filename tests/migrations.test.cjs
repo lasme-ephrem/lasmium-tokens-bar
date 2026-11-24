@@ -109,6 +109,22 @@ test('Adding Claude to older inventory preserves account settings, history and u
   assert.equal(addClaude(result.state).changed,false);
 });
 
+test('0.6.19 : RunInfra devient RightNow sans toucher à la clé, au relevé ni à l’historique', () => {
+  const state = createSeed();
+  const runinfra = state.providers.find(p => p.id === 'runinfra');
+  Object.assign(runinfra, { name: 'RunInfra', monogram: 'R', color: '#efa793', active: true, snapshot: { balances: [{ currency: 'USD', remaining: 5.97 }] }, spending: { startAmount: 5 } });
+  state.history = [{ providerId: 'runinfra', balances: [{ remaining: 5.97 }] }];
+  const before = structuredClone(state), result = normalizeProviderPresentation(state);
+  assert.equal(result.changed, true);
+  const after = result.state.providers.find(p => p.id === 'runinfra');
+  assert.deepEqual({ name: after.name, monogram: after.monogram, color: after.color }, { name: 'RightNow', monogram: 'RN', color: '#76b900' });
+  assert.deepEqual({ ...after, name: 'RunInfra', monogram: 'R', color: '#efa793' }, before.providers.find(p => p.id === 'runinfra'));
+  assert.deepEqual(result.state.history, before.history);
+  assert.deepEqual(state, before);
+  assert.equal(normalizeProviderPresentation(result.state).changed, false);
+  assert.equal(createSeed().providers.find(p => p.id === 'runinfra').name, 'RightNow');
+});
+
 test('Provider presentation migration reorders subscriptions and renames without touching accounts or usage', () => {
   const state = createSeed();
   state.providers.reverse();

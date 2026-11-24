@@ -21,7 +21,7 @@ Il ne constitue pas une certification de conformité juridique (voir
 | Historique des relevés | Jusqu'à **20 000 relevés** (identifiant, fournisseur, horodatage, soldes par devise, pourcentages de quota, dates de remise à zéro) | Lectures fournisseurs et relevés manuels |
 | Réglages | Actualisation automatique, notifications, seuil de solde bas, thème clair/sombre/système | Saisie de l'utilisateur |
 | Santé des connecteurs | Par fournisseur : dernier succès, dernier échec, compteur d'échecs, code et message d'erreur, prochaine tentative | Résultat des lectures fournisseurs |
-| Clés API | Clés OpenRouter, DeepSeek et RunInfra, **chiffrées** (voir §3) | Saisie de l'utilisateur |
+| Clés API | Clés OpenRouter, DeepSeek et RightNow (ex-RunInfra), **chiffrées** (voir §3) | Saisie de l'utilisateur |
 | Sessions de connexion aux comptes | Profils Chrome/Edge dédiés et partition Electron `persist:ollama-account` : cookies de session, stockage local des portails fournisseurs | Connexion de l'utilisateur sur les sites officiels |
 | Identifiants de compte pseudonymes | Pour OpenAI : empreinte SHA-256 de l'adresse e-mail du compte Codex (jamais l'adresse en clair). | Réponses des services officiels |
 | Cooldowns API | Empreintes SHA-256 de clés API et échéance de reprise après une réponse HTTP 429 (plafond 100 entrées) | Réponses des fournisseurs |
@@ -139,7 +139,7 @@ un serveur Lasmium TOKENS-HUB. Il n'y a ni analytics, ni crash reporting, ni pub
 Les seules connexions sortantes servent à lire les informations demandées par
 l'utilisateur, vers les services officiels qu'il a lui-même configurés :
 
-- `openrouter.ai`, `api.deepseek.com`, `api.runinfra.ai` (soldes par clé API) ;
+- `openrouter.ai`, `api.deepseek.com`, `api.rightnowai.co` (soldes par clé API ; RightNow, ex-RunInfra) ;
 - `platform.claude.com` et `api.anthropic.com` (renouvellement OAuth et quotas Claude) ;
 - `chatgpt.com` / Codex local pour OpenAI ;
 - `claude.ai`, `grok.com`, `z.ai` (pages d'utilisation dans Chrome/Edge) ;

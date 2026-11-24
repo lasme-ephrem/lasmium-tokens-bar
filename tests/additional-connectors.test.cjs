@@ -4,7 +4,7 @@ const { parseResponse, fetchUsage } = require('../lib/connectors.cjs');
 const { connectionInfo } = require('../lib/provider-catalog.cjs');
 const credits = { object: 'credits', currency: 'usd', balance_cents: 5476, held_cents: 34, available_cents: 5476, period: { spent_cents: 1500 }, as_of: '2026-08-27T10:41:12.318Z' };
 
-test('RunInfra converts integer cents without subtracting holds twice or using a spend cap', () => {
+test('RightNow (ex-RunInfra) converts integer cents without subtracting holds twice or using a spend cap', () => {
   const result = parseResponse('runinfra', { ...credits, spend_cap: { remaining_cents: 99999 } });
   assert.deepEqual(result.balances, [{ currency: 'USD', remaining: 54.76 }]);
   assert.deepEqual(result.details.map(d => d.amount), [54.76, 0.34, 15]);
@@ -13,7 +13,7 @@ test('RunInfra converts integer cents without subtracting holds twice or using a
   assert.equal(zero.balances[0].remaining, 0);
 });
 
-test('RunInfra rejects incomplete, negative or inconsistent amounts instead of displaying them', () => {
+test('RightNow (ex-RunInfra) rejects incomplete, negative or inconsistent amounts instead of displaying them', () => {
   for (const patch of [{ balance_cents: null }, { balance_cents: 4.5 }, { balance_cents: -25 }, { held_cents: -1 }, { available_cents: 5442 }, { currency: 'eur' }, { object: 'other' }, { as_of: 'bad' }, { period: { spent_cents: -2 } }]) {
     assert.throws(() => parseResponse('runinfra', { ...credits, ...patch }));
   }
@@ -49,7 +49,7 @@ test('OrcaRouter (retiré en 0.6.17) n’a plus de connecteur API', () => {
 
 test('Additional connectors send only fixed read-only authenticated requests and sanitize errors', async () => {
   for (const [id, url, body] of [
-    ['runinfra', 'https://api.runinfra.ai/v1/credits', credits],
+    ['runinfra', 'https://api.rightnowai.co/v1/credits', credits],
   ]) {
     await fetchUsage(id, ' test-key ', async (actualUrl, options) => {
       assert.equal(actualUrl, url);

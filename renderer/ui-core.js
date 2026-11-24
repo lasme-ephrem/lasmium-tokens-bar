@@ -122,7 +122,7 @@ const PROVIDER_LOGOS = {
   grok: 'grok.svg',
   openrouter: 'openrouter.png',
   deepseek: 'deepseek.ico',
-  runinfra: 'runinfra.svg',
+  runinfra: 'rightnow.svg',
 };
 
 const hasConnector = provider => Boolean(provider.connector);
