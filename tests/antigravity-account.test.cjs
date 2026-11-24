@@ -88,6 +88,41 @@ test('Discovery distinguishes a missing service from a service without readable 
  const noCsrf=await discoverServers({run:async()=>JSON.stringify({args:'no-token',ports:[9222]})}).then(()=>null,error=>error);
  assert.equal(noCsrf&&noCsrf.code,'ANTIGRAVITY_NO_PORTS');
 });
+test('Antigravity 2.34+ : jeton lu dans daemon/hub_<port>.json du seul service vérifié, port HTTPS en premier',async()=>{
+ const token='0f8c2a4e-9b1d-4c3e-8a7f-6d5e4c3b2a10';
+ const args='--standalone --https_server_port 0 --host_bridge_url=http://127.0.0.1:1 --read_host_bridge_token_from_stdin';
+ const hubs=[
+  {pid:999,httpsPort:40001,httpPort:40002,lsVersion:'2.33.0',csrfToken:'ancien-jeton-de-session-morte-1234'},
+  {pid:12256,httpsPort:57513,httpPort:57514,lsVersion:'2.34.0',csrfToken:token},
+ ];
+ assert.match(DISCOVERY_COMMAND,/pid=\$server\.ProcessId/);
+ const servers=await discoverServers({run:async()=>JSON.stringify({pid:12256,args,ports:[53321,57514,57513]}),readHubs:async()=>hubs});
+ assert.deepEqual(servers.map(s=>s.port),[57513,53321],'HTTPS en premier, port HTTP exclu');
+ assert.ok(servers.every(s=>s.csrf===token),'jamais le jeton d’une ancienne session');
+ // Port HTTPS du fichier absent des ports du service : il n'est pas utilisé.
+ const notOwned=await discoverServers({run:async()=>JSON.stringify({pid:12256,args,ports:[53321]}),readHubs:async()=>hubs});
+ assert.deepEqual(notOwned.map(s=>s.port),[53321]);
+ // Aucun fichier pour ce pid, ou jeton invalide : ports illisibles, sans fuite.
+ for(const list of [[hubs[0]],[{...hubs[1],csrfToken:'x'}],[]]){
+  const error=await discoverServers({run:async()=>JSON.stringify({pid:12256,args,ports:[57513]}),readHubs:async()=>list}).then(()=>null,e=>e);
+  assert.equal(error&&error.code,'ANTIGRAVITY_NO_PORTS');
+  assert.equal(error.message.includes('ancien-jeton'),false);
+ }
+ // Lecture des fichiers en échec : même diagnostic, jamais d'exception brute.
+ const failing=await discoverServers({run:async()=>JSON.stringify({pid:12256,args,ports:[57513]}),readHubs:async()=>{throw new Error('EACCES')}}).then(()=>null,e=>e);
+ assert.equal(failing&&failing.code,'ANTIGRAVITY_NO_PORTS');
+});
+test('readHubFiles ne lit que les petits fichiers hub_<port>.json du dossier, sans échouer',async t=>{
+ const fs=require('node:fs/promises'),os=require('node:os'),path=require('node:path');
+ const {readHubFiles}=require('../lib/antigravity-account.cjs');
+ const dir=await fs.mkdtemp(path.join(os.tmpdir(),'ag-hub-'));t.after(()=>fs.rm(dir,{recursive:true,force:true}));
+ await fs.writeFile(path.join(dir,'hub_57514.json'),JSON.stringify({pid:1,csrfToken:'abcdefghijklmnop1234'}));
+ await fs.writeFile(path.join(dir,'hub_1.json'),'pas du json');
+ await fs.writeFile(path.join(dir,'autre.json'),JSON.stringify({pid:2}));
+ await fs.writeFile(path.join(dir,'hub_2.json'),'x'.repeat(5000));
+ assert.deepEqual(await readHubFiles({directory:dir}),[{pid:1,csrfToken:'abcdefghijklmnop1234'}]);
+ assert.deepEqual(await readHubFiles({directory:path.join(dir,'absent')}),[]);
+});
 test('Local discovery handles a closed app and skips non-HTTP service ports without exposing local tokens',async()=>{
  await assert.rejects(fetchAntigravityQuota({discover:async()=>[]}),/Aucune CLI/);
  let calls=0;

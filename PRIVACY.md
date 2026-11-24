@@ -1,6 +1,6 @@
 # Confidentialité — Lasmium TOKENS-HUB
 
-Ce document décrit le comportement de la version **0.6.18** ; la version
+Ce document décrit le comportement de la version **0.6.19** ; la version
 installée est affichée dans les réglages de l'application.
 
 Lasmium TOKENS-HUB est une application **locale pour Windows x64**. Elle ne dispose
@@ -145,7 +145,9 @@ l'utilisateur, vers les services officiels qu'il a lui-même configurés :
 - `claude.ai`, `grok.com`, `z.ai` (pages d'utilisation dans Chrome/Edge) ;
 - `ollama.com` (session de compte) ;
 - services locaux en boucle locale : service Antigravity sur `127.0.0.1` (port
-  du processus installé vérifié) et Codex `app-server` local ;
+  du processus installé vérifié ; depuis Antigravity 2.34, son jeton local est lu
+  dans `~/.gemini/antigravity/daemon/hub_<port>.json` du même processus, gardé
+  en mémoire et jamais enregistré) et Codex `app-server` local ;
 - `github.com` (manifeste `latest.json` et archive ZIP de la release officielle,
   uniquement pour la mise à jour automatique).
 

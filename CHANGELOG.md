@@ -1,5 +1,21 @@
 # Historique des versions
 
+## 0.6.19 — 24 novembre 2026
+
+Version **corrective** : Antigravity est de nouveau lu. Toutes les
+fonctionnalités 0.6.18 sont conservées.
+
+### Corrections
+
+- Antigravity : depuis la version 2.34 (installée le 20 novembre), le service
+  local ne reçoit plus son jeton CSRF sur sa ligne de commande ; Lasmium
+  affichait « ports locaux ou jeton CSRF non lisibles ». Le jeton est désormais
+  lu dans le fichier de découverte que le service écrit lui-même
+  (`~/.gemini/antigravity/daemon/hub_<port>.json`), uniquement celui dont le
+  processus est le service Antigravity vérifié ; les fichiers d'anciennes
+  sessions sont ignorés. La requête part d'abord vers le port HTTPS de ce
+  service, toujours en local. Les versions antérieures restent prises en charge.
+
 ## 0.6.18 — 18 novembre 2026
 
 Version **corrective** : le bon message après « Connecter Claude ». Toutes les
